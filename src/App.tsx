@@ -106,6 +106,33 @@ function useRailResize(mainRef: React.RefObject<HTMLElement | null>) {
   return { width, start };
 }
 
+// Dark / light / system-follow. Default is system (law 11: no mandatory config)
+// — matchMedia tracks the OS live in WKWebView, no Rust needed. Sets
+// documentElement[data-theme]; index.css re-points the coal/ember ramp.
+type Theme = 'system' | 'dark' | 'light';
+function useTheme(): [Theme, () => void] {
+  const [theme, setTheme] = useState<Theme>(() => (localStorage.getItem('fs.theme') as Theme) ?? 'system');
+  useEffect(() => {
+    const mq = window.matchMedia('(prefers-color-scheme: dark)');
+    const apply = () => {
+      const resolved = theme === 'system' ? (mq.matches ? 'dark' : 'light') : theme;
+      document.documentElement.dataset.theme = resolved;
+    };
+    apply();
+    if (theme !== 'system') return;
+    mq.addEventListener('change', apply);
+    return () => mq.removeEventListener('change', apply);
+  }, [theme]);
+  const cycle = useCallback(() => {
+    setTheme((t) => {
+      const next: Theme = t === 'system' ? 'dark' : t === 'dark' ? 'light' : 'system';
+      localStorage.setItem('fs.theme', next);
+      return next;
+    });
+  }, []);
+  return [theme, cycle];
+}
+
 /** Law 7: the elapsed clock, always visible next to where the user looks. */
 function useElapsedLabel(turnStartedAt: number | null): string {
   const [now, setNow] = useState(() => Date.now());
@@ -139,6 +166,7 @@ function App() {
   const [scratchPinned, setScratchPinned] = useState(false);
   const mainRef = useRef<HTMLElement>(null);
   const { width: railWidth, start: startRailResize } = useRailResize(mainRef);
+  const [theme, cycleTheme] = useTheme();
   // v2: model + permission mode are user prefs (persisted); the sidecar is told
   // on boot and on every change. The pickers read from these, not from the
   // echoed session_config, so switching never races the round-trip.
@@ -526,6 +554,32 @@ function App() {
             set api key
           </button>
         )}
+
+        {/* theme: system-follow by default; one click cycles system → dark → light */}
+        <button
+          type="button"
+          onClick={cycleTheme}
+          aria-label={`theme: ${theme}`}
+          title={`Theme: ${theme} (click to cycle)`}
+          className="p-1 text-coal-600 transition-colors duration-200 hover:text-coal-300 active:scale-[0.98]"
+        >
+          {theme === 'system' ? (
+            <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" strokeWidth="1.5">
+              <rect x="3" y="4" width="18" height="12" rx="1.5" />
+              <path d="M8 20h8M12 16v4" strokeLinecap="round" />
+            </svg>
+          ) : theme === 'dark' ? (
+            <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" strokeWidth="1.5">
+              <path d="M20 14.5A8 8 0 0 1 9.5 4a7 7 0 1 0 10.5 10.5z" strokeLinejoin="round" />
+            </svg>
+          ) : (
+            <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" strokeWidth="1.5">
+              <circle cx="12" cy="12" r="4" />
+              <path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4" strokeLinecap="round" />
+            </svg>
+          )}
+        </button>
+
         <XpCounter total={state.xpTotal} gained={state.xpGained} />
       </header>
 
