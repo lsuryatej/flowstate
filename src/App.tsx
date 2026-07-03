@@ -197,6 +197,9 @@ function App() {
   useEffect(() => {
     const lastActive = Number(localStorage.getItem('fs.lastActive') ?? 0);
     const id = window.setTimeout(() => {
+      // v3: resume this repo's last session (backfills history) before
+      // anything else so the transcript is in place before the first prompt.
+      void sendControl({ type: 'resume_session', cwd: localStorage.getItem('fs.cwd') ?? undefined });
       void sendControl({ type: 'get_recovery' });
       void sendControl({ type: 'suggest_next_task', cwd: localStorage.getItem('fs.cwd') ?? undefined });
       // v2: sync the persisted model + permission mode into the fresh sidecar
@@ -313,6 +316,9 @@ function App() {
   // v2: answer a canUseTool round-trip.
   const onAllow = useCallback((id: string) => void sendControl({ type: 'permission_response', id, decision: 'allow' }), [sendControl]);
   const onDeny = useCallback((id: string) => void sendControl({ type: 'permission_response', id, decision: 'deny' }), [sendControl]);
+
+  // v3: user chose a clean slate over the resumed session.
+  const onNewSession = useCallback(() => void sendControl({ type: 'new_session' }), [sendControl]);
 
   // v2: native folder picker -> set + validate the repo path.
   const pickFolder = useCallback(async () => {
@@ -509,6 +515,18 @@ function App() {
         style={{ gridTemplateColumns: `minmax(0, 1fr) ${railWidth}px` }}
       >
         <section className="flex min-h-0 flex-col px-5 pb-4 pt-3">
+          {state.resumed && (
+            <div className="mx-auto mb-2 flex w-full max-w-[68ch] items-center justify-between font-mono text-[11px] text-coal-500">
+              <span>· resumed from your last session</span>
+              <button
+                type="button"
+                onClick={onNewSession}
+                className="rounded px-1.5 py-0.5 text-coal-500 transition-colors duration-200 hover:text-ember-400"
+              >
+                start fresh
+              </button>
+            </div>
+          )}
           <ResponsePane chat={state.chat} arriving={arriving} lastResult={state.lastResult} error={state.error} />
 
           {/* statusline + prompt share the reading measure so the column reads

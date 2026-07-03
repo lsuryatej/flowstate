@@ -48,6 +48,8 @@ export interface AppState {
   effort: EffortLevel;
   permissionAsks: PermissionAsk[]; // queue of pending canUseTool requests
   cwdStatus: { valid: boolean; resolved: string; message?: string } | null;
+  // ---- v3 ----
+  resumed: boolean; // a prior session was resumed on boot (drives the chip)
 }
 
 const initial: AppState = {
@@ -73,6 +75,7 @@ const initial: AppState = {
   effort: DEFAULT_EFFORT,
   permissionAsks: [],
   cwdStatus: null,
+  resumed: false,
 };
 
 type Action =
@@ -92,6 +95,7 @@ function reduce(s: AppState, a: Action): AppState {
       error: null,
       needsInput: null,
       nextTask: null, // the user is moving; the suggestion did its job
+      resumed: false, // sending a prompt dismisses the resumed chip
     };
   }
   if (a.kind === 'dismiss_next') return { ...s, nextTask: null };
@@ -171,6 +175,11 @@ function reduce(s: AppState, a: Action): AppState {
       return { ...s, model: e.model, permissionMode: e.permissionMode, effort: e.effort };
     case 'cwd_status':
       return { ...s, cwdStatus: { valid: e.valid, resolved: e.resolved, message: e.message } };
+    // ---- v3 ----
+    case 'history':
+      return { ...s, chat: e.items.map((i) => ({ role: i.role, text: i.text })), resumed: e.items.length === 0 ? false : s.resumed };
+    case 'resumed':
+      return { ...s, resumed: true };
     default:
       return s;
   }

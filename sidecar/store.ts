@@ -16,6 +16,7 @@ const tasksPath = join(dataDir, 'tasks.json');
 const lotMdPath = join(dataDir, 'parking-lot.md');
 const lotJsonPath = join(dataDir, 'parking-lot.json');
 const positionPath = join(dataDir, 'position.json');
+const sessionPointerPath = join(dataDir, 'session-pointer.json');
 
 export function readXp(): number {
   try {
@@ -130,4 +131,23 @@ export function readPosition(): Position {
 
 export function updatePosition(patch: Partial<Position>): void {
   writeJson(positionPath, { ...readPosition(), ...patch, ts: Date.now() });
+}
+
+// ---- v3: session continuity. One pointer per machine (last session used,
+// for whichever repo it was in) — resume() checks the repo matches before
+// arming, so switching repos never resumes the wrong conversation. ----
+
+export interface SessionPointer {
+  sessionId: string;
+  cwd: string;
+  ts: number;
+}
+
+export function readSessionPointer(): SessionPointer | null {
+  const p = readJson<SessionPointer | null>(sessionPointerPath, null);
+  return p && typeof p.sessionId === 'string' ? p : null;
+}
+
+export function writeSessionPointer(sessionId: string, cwd: string): void {
+  writeJson(sessionPointerPath, { sessionId, cwd, ts: Date.now() });
 }

@@ -75,6 +75,10 @@ rl.on('line', (line) => {
     const resolved = resolveCwd(msg.cwd) ?? '';
     const valid = resolved === '' || existsSync(resolved);
     emit({ t: 'cwd_status', valid, resolved, message: valid ? undefined : 'path not found' });
+  } else if (msg.type === 'resume_session') {
+    void session.resume(msg.cwd);
+  } else if (msg.type === 'new_session') {
+    session.newSession();
   }
 });
 

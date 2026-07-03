@@ -11,14 +11,16 @@
 import { existsSync } from 'node:fs';
 import { homedir } from 'node:os';
 import { resolve } from 'node:path';
-import { query } from '@anthropic-ai/claude-agent-sdk';
+import { query, getSessionMessages } from '@anthropic-ai/claude-agent-sdk';
 import type {
   Query,
   SDKUserMessage,
+  SessionMessage,
   PermissionMode as SdkPermissionMode,
   PermissionResult,
 } from '@anthropic-ai/claude-agent-sdk';
 import { Normalizer } from './normalize.js';
+import { readSessionPointer, writeSessionPointer } from './store.js';
 import {
   DEFAULT_EFFORT,
   DEFAULT_MODEL,
@@ -49,6 +51,22 @@ function summarize(tool: string, input: Record<string, unknown>): string {
   return `${tool} ${flat.length > 80 ? flat.slice(0, 79) + '…' : flat}`;
 }
 
+/** Flatten a transcript message's content (string or content-block array) to plain text. */
+function extractText(m: SessionMessage): string {
+  const content = (m.message as { content?: unknown } | null)?.content;
+  if (typeof content === 'string') return content;
+  if (Array.isArray(content)) {
+    return content
+      .filter(
+        (b): b is { type: string; text: string } =>
+          !!b && typeof b === 'object' && (b as { type?: string }).type === 'text' && typeof (b as { text?: string }).text === 'string',
+      )
+      .map((b) => b.text)
+      .join('');
+  }
+  return '';
+}
+
 export class AgentSession {
   private q: Query | null = null;
   private queue: SDKUserMessage[] = [];
@@ -65,6 +83,13 @@ export class AgentSession {
   // v2: pending canUseTool requests, keyed by the id we hand the webview.
   private pending = new Map<string, (r: PermissionResult) => void>();
   private nextReqId = 0;
+
+  // v3: session continuity. pendingResumeId is armed by resume() (boot) and
+  // consumed by start() (first prompt); resolvedCwd tracks the repo the
+  // running/about-to-run session belongs to, so pump() can attribute a fresh
+  // session_started to the right pointer.
+  private pendingResumeId: string | null = null;
+  private resolvedCwd = '';
 
   constructor(
     private emit: (e: UiEvent) => void,
@@ -165,14 +190,16 @@ export class AgentSession {
       this.emit({ t: 'error', message: `repo path does not exist: ${dir}` });
       return;
     }
+    this.resolvedCwd = dir ?? '';
     this.log(
-      `starting agent session${dir ? ` in ${dir}` : ''} (model=${this.model}, mode=${this.permissionMode}, effort=${this.effort})`,
+      `starting agent session${dir ? ` in ${dir}` : ''} (model=${this.model}, mode=${this.permissionMode}, effort=${this.effort}${this.pendingResumeId ? `, resume=${this.pendingResumeId}` : ''})`,
     );
     this.emitConfig();
     this.q = query({
       prompt: this.input(),
       options: {
         cwd: dir,
+        resume: this.pendingResumeId ?? undefined,
         includePartialMessages: true, // required for assistant_text streaming
         model: this.model,
         permissionMode: toSdkMode(this.permissionMode),
@@ -183,6 +210,7 @@ export class AgentSession {
         canUseTool: (toolName, toolInput) => this.requestPermission(toolName, toolInput),
       },
     });
+    this.pendingResumeId = null;
     void this.pump();
   }
 
@@ -209,11 +237,42 @@ export class AgentSession {
   private async pump(): Promise<void> {
     try {
       for await (const msg of this.q!) {
-        for (const e of this.normalizer.normalize(msg)) this.emit(e);
+        for (const e of this.normalizer.normalize(msg)) {
+          if (e.t === 'session_started') writeSessionPointer(e.sessionId, this.resolvedCwd);
+          this.emit(e);
+        }
       }
       this.emit({ t: 'error', message: 'agent session ended; restart the app for a new session' });
     } catch (err) {
       this.emit({ t: 'error', message: `agent session crashed: ${err}` });
     }
+  }
+
+  /** Boot: if this repo has a stored session, arm resume + backfill the transcript. */
+  async resume(cwd?: string): Promise<void> {
+    const dir = resolveCwd(cwd) ?? '';
+    const pointer = readSessionPointer();
+    if (!pointer || pointer.cwd !== dir) return; // nothing to resume for this repo
+    this.pendingResumeId = pointer.sessionId;
+    this.resolvedCwd = dir;
+    try {
+      const msgs = await getSessionMessages(pointer.sessionId, { dir: dir || undefined, limit: 40 });
+      const items = msgs
+        .filter((m) => m.type === 'user' || m.type === 'assistant')
+        .map((m) => ({ role: m.type as 'user' | 'assistant', text: extractText(m) }))
+        .filter((i) => i.text.trim().length > 0);
+      this.emit({ t: 'history', items });
+      this.emit({ t: 'resumed', sessionId: pointer.sessionId });
+    } catch (err) {
+      this.log(`resume backfill failed: ${err}`);
+      // still armed to resume even if backfill read failed
+      this.emit({ t: 'resumed', sessionId: pointer.sessionId });
+    }
+  }
+
+  /** User chose a clean slate: drop the armed resume and clear the pane. */
+  newSession(): void {
+    this.pendingResumeId = null;
+    this.emit({ t: 'history', items: [] });
   }
 }

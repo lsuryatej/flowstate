@@ -88,7 +88,10 @@ export type UiEvent =
   | { t: 'permission_request'; id: string; tool: string; summary: string } // canUseTool round-trip: agent asks, UI answers with permission_response
   | { t: 'permission_resolved'; id: string } // request settled (answered, or superseded by interrupt) so the UI can drop it
   | { t: 'session_config'; model: string; permissionMode: PermissionMode; effort: EffortLevel } // echo current session config (emitted on start + set_*)
-  | { t: 'cwd_status'; valid: boolean; resolved: string; message?: string }; // v2: path validation feedback for the repo field
+  | { t: 'cwd_status'; valid: boolean; resolved: string; message?: string } // v2: path validation feedback for the repo field
+  // ---- v3 (session continuity) ----
+  | { t: 'history'; items: { role: 'user' | 'assistant'; text: string }[] } // full transcript replace on resume
+  | { t: 'resumed'; sessionId: string }; // a prior session was resumed
 
 // Control messages the webview sends toward the sidecar
 // (webview -> Tauri command -> Rust -> sidecar stdin, one JSON per line).
@@ -107,7 +110,10 @@ export type ControlMsg =
   | { type: 'set_permission_mode'; mode: PermissionMode } // switch permission mode (start-time + mid-session)
   | { type: 'set_effort'; level: EffortLevel } // switch reasoning effort (start-time + mid-session via applyFlagSettings)
   | { type: 'permission_response'; id: string; decision: 'allow' | 'deny' } // answer a permission_request
-  | { type: 'validate_cwd'; cwd: string }; // check a repo path exists, emits cwd_status
+  | { type: 'validate_cwd'; cwd: string } // check a repo path exists, emits cwd_status
+  // ---- v3 (session continuity) ----
+  | { type: 'resume_session'; cwd?: string } // boot: backfill history + arm resume of this repo's last session
+  | { type: 'new_session' }; // discard armed resume + clear chat; next prompt starts fresh
 
 // Tauri event channel Rust emits every UiEvent on.
 export const UI_EVENT_CHANNEL = 'ui-event';
