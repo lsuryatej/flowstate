@@ -51,6 +51,7 @@ export interface AppState {
   // ---- v3 ----
   resumed: boolean; // a prior session was resumed on boot (drives the chip)
   auth: { method: 'subscription' | 'api_key'; email?: string; plan?: string } | null;
+  recentProjects: { cwd: string; lastPrompt: string; lastSeen: number }[];
 }
 
 const initial: AppState = {
@@ -78,6 +79,7 @@ const initial: AppState = {
   cwdStatus: null,
   resumed: false,
   auth: null,
+  recentProjects: [],
 };
 
 type Action =
@@ -184,6 +186,8 @@ function reduce(s: AppState, a: Action): AppState {
       return { ...s, resumed: true };
     case 'auth_status':
       return { ...s, auth: { method: e.method, email: e.email, plan: e.plan } };
+    case 'recent_projects':
+      return { ...s, recentProjects: e.items };
     default:
       return s;
   }

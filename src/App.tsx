@@ -29,6 +29,7 @@ import {
 import type { FillerMode, ScratchpadEntry } from './types';
 import TinySelect from './components/TinySelect';
 import ModelPicker from './components/ModelPicker';
+import RecentProjects from './components/RecentProjects';
 import EffortPicker from './components/EffortPicker';
 import PermissionPrompt from './components/PermissionPrompt';
 import PromptBar from './components/PromptBar';
@@ -215,6 +216,7 @@ function App() {
       });
       const savedCwd = localStorage.getItem('fs.cwd');
       if (savedCwd) void sendControl({ type: 'validate_cwd', cwd: savedCwd });
+      void sendControl({ type: 'get_recent_projects' });
       if (lastActive && Date.now() - lastActive > RECOVERY_GAP_MS) setShowRecovery(true);
     }, 400); // let the sidecar finish booting
     const markActive = () => localStorage.setItem('fs.lastActive', String(Date.now()));
@@ -320,6 +322,20 @@ function App() {
   // v3: user chose a clean slate over the resumed session.
   const onNewSession = useCallback(() => void sendControl({ type: 'new_session' }), [sendControl]);
 
+  // v3: switch to a recently-used project — mirrors what happens when the
+  // user sets a repo path and reboots the per-repo context.
+  const onPickProject = useCallback(
+    (dir: string) => {
+      setCwd(dir);
+      localStorage.setItem('fs.cwd', dir);
+      void sendControl({ type: 'validate_cwd', cwd: dir });
+      void sendControl({ type: 'resume_session', cwd: dir });
+      void sendControl({ type: 'get_recovery' });
+      void sendControl({ type: 'suggest_next_task', cwd: dir });
+    },
+    [sendControl],
+  );
+
   // v2: native folder picker -> set + validate the repo path.
   const pickFolder = useCallback(async () => {
     const picked = await open({ directory: true, multiple: false, title: 'Choose repo folder' });
@@ -420,6 +436,7 @@ function App() {
               />
             </svg>
           </button>
+          <RecentProjects items={state.recentProjects} onPick={onPickProject} />
         </span>
 
         <span className="flex-1" />

@@ -15,6 +15,7 @@ import {
   trackPosition,
   trackPrompt,
 } from './exec.js';
+import { setActiveProject, readRecentProjects } from './store.js';
 import type { ControlMsg, UiEvent } from '../shared/uiEvents.js';
 
 function emit(e: UiEvent): void {
@@ -39,6 +40,7 @@ rl.on('line', (line) => {
     return;
   }
   if (msg.type === 'prompt') {
+    setActiveProject(msg.cwd);
     log(`prompt received (${msg.text.length} chars)${msg.cwd ? ` cwd=${msg.cwd}` : ''}`);
     trackPrompt(msg.text);
     session.sendPrompt(msg.text, msg.cwd);
@@ -46,9 +48,11 @@ rl.on('line', (line) => {
     log('interrupt received');
     void session.interrupt();
   } else if (msg.type === 'suggest_next_task') {
+    setActiveProject(msg.cwd);
     log('next-task request');
     void suggestNextTask(msg.cwd, emit);
   } else if (msg.type === 'decompose') {
+    setActiveProject(msg.cwd);
     log(`decompose request (${msg.goal.length} chars)`);
     void decompose(msg.goal, msg.cwd, emit);
   } else if (msg.type === 'check_task') {
@@ -76,9 +80,12 @@ rl.on('line', (line) => {
     const valid = resolved === '' || existsSync(resolved);
     emit({ t: 'cwd_status', valid, resolved, message: valid ? undefined : 'path not found' });
   } else if (msg.type === 'resume_session') {
+    setActiveProject(msg.cwd);
     void session.resume(msg.cwd);
   } else if (msg.type === 'new_session') {
     session.newSession();
+  } else if (msg.type === 'get_recent_projects') {
+    emit({ t: 'recent_projects', items: readRecentProjects() });
   }
 });
 

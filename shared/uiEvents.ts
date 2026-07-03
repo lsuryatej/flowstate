@@ -92,7 +92,8 @@ export type UiEvent =
   // ---- v3 (session continuity) ----
   | { t: 'history'; items: { role: 'user' | 'assistant'; text: string }[] } // full transcript replace on resume
   | { t: 'resumed'; sessionId: string } // a prior session was resumed
-  | { t: 'auth_status'; method: 'subscription' | 'api_key'; email?: string; plan?: string }; // surfaced after the session initializes
+  | { t: 'auth_status'; method: 'subscription' | 'api_key'; email?: string; plan?: string } // surfaced after the session initializes
+  | { t: 'recent_projects'; items: { cwd: string; lastPrompt: string; lastSeen: number }[] }; // the "where was I" list
 
 // Control messages the webview sends toward the sidecar
 // (webview -> Tauri command -> Rust -> sidecar stdin, one JSON per line).
@@ -114,7 +115,8 @@ export type ControlMsg =
   | { type: 'validate_cwd'; cwd: string } // check a repo path exists, emits cwd_status
   // ---- v3 (session continuity) ----
   | { type: 'resume_session'; cwd?: string } // boot: backfill history + arm resume of this repo's last session
-  | { type: 'new_session' }; // discard armed resume + clear chat; next prompt starts fresh
+  | { type: 'new_session' } // discard armed resume + clear chat; next prompt starts fresh
+  | { type: 'get_recent_projects' }; // request the recent-repos list
 
 // Tauri event channel Rust emits every UiEvent on.
 export const UI_EVENT_CHANNEL = 'ui-event';
