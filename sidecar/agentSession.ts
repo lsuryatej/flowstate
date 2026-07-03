@@ -238,13 +238,31 @@ export class AgentSession {
     try {
       for await (const msg of this.q!) {
         for (const e of this.normalizer.normalize(msg)) {
-          if (e.t === 'session_started') writeSessionPointer(e.sessionId, this.resolvedCwd);
+          if (e.t === 'session_started') {
+            writeSessionPointer(e.sessionId, this.resolvedCwd);
+            void this.emitAuthStatus();
+          }
           this.emit(e);
         }
       }
       this.emit({ t: 'error', message: 'agent session ended; restart the app for a new session' });
     } catch (err) {
       this.emit({ t: 'error', message: `agent session crashed: ${err}` });
+    }
+  }
+
+  /** v2 footgun fix: surface whether we're authed via subscription (OAuth) or
+   * a pasted API key, once per session start — a stored key silently
+   * overrides a subscription login, so the UI needs to make the actual
+   * active method legible. */
+  private async emitAuthStatus(): Promise<void> {
+    if (!this.q) return;
+    try {
+      const a = await this.q.accountInfo();
+      const method = a.apiKeySource === 'oauth' ? 'subscription' : 'api_key';
+      this.emit({ t: 'auth_status', method, email: a.email, plan: a.subscriptionType });
+    } catch (err) {
+      this.log(`accountInfo failed: ${err}`);
     }
   }
 

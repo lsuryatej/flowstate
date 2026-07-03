@@ -435,6 +435,19 @@ function App() {
           onChange={(v) => changeMode(v as PermissionMode)}
         />
 
+        {state.auth && (
+          <span
+            className="flex items-center gap-1 font-mono text-[11px] text-coal-500"
+            title={
+              state.auth.method === 'subscription'
+                ? `Signed in with your Claude subscription${state.auth.email ? ` (${state.auth.email})` : ''}${state.auth.plan ? ` · ${state.auth.plan}` : ''}`
+                : 'Authenticated with an API key (usage-billed). Remove the key to fall back to a Claude subscription login, if you have one.'
+            }
+          >
+            <span className={`inline-block h-1.5 w-1.5 rounded-full ${state.auth.method === 'subscription' ? 'bg-emerald-500/70' : 'bg-coal-500'}`} />
+            {state.auth.method === 'subscription' ? (state.auth.plan ?? 'subscription') : 'api key'}
+          </span>
+        )}
         {keyOpen ? (
           <span className="flex items-center gap-1.5">
             <input

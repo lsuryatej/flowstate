@@ -50,6 +50,7 @@ export interface AppState {
   cwdStatus: { valid: boolean; resolved: string; message?: string } | null;
   // ---- v3 ----
   resumed: boolean; // a prior session was resumed on boot (drives the chip)
+  auth: { method: 'subscription' | 'api_key'; email?: string; plan?: string } | null;
 }
 
 const initial: AppState = {
@@ -76,6 +77,7 @@ const initial: AppState = {
   permissionAsks: [],
   cwdStatus: null,
   resumed: false,
+  auth: null,
 };
 
 type Action =
@@ -180,6 +182,8 @@ function reduce(s: AppState, a: Action): AppState {
       return { ...s, chat: e.items.map((i) => ({ role: i.role, text: i.text })), resumed: e.items.length === 0 ? false : s.resumed };
     case 'resumed':
       return { ...s, resumed: true };
+    case 'auth_status':
+      return { ...s, auth: { method: e.method, email: e.email, plan: e.plan } };
     default:
       return s;
   }

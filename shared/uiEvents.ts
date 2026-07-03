@@ -91,7 +91,8 @@ export type UiEvent =
   | { t: 'cwd_status'; valid: boolean; resolved: string; message?: string } // v2: path validation feedback for the repo field
   // ---- v3 (session continuity) ----
   | { t: 'history'; items: { role: 'user' | 'assistant'; text: string }[] } // full transcript replace on resume
-  | { t: 'resumed'; sessionId: string }; // a prior session was resumed
+  | { t: 'resumed'; sessionId: string } // a prior session was resumed
+  | { t: 'auth_status'; method: 'subscription' | 'api_key'; email?: string; plan?: string }; // surfaced after the session initializes
 
 // Control messages the webview sends toward the sidecar
 // (webview -> Tauri command -> Rust -> sidecar stdin, one JSON per line).
