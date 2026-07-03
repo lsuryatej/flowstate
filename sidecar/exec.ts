@@ -12,6 +12,7 @@ import {
   addXp,
   readXp,
   park,
+  checkParked,
   readParkingLot,
   readPlan,
   writePlan,
@@ -104,6 +105,17 @@ export function parkThought(text: string, emit: (e: UiEvent) => void): void {
   const trimmed = text.trim();
   if (!trimmed) return;
   emit({ t: 'parking_lot', items: park(trimmed, currentFocus()) });
+}
+
+// Triage / can forget — one check = one quiet XP tick (no chime), only on
+// false->true. Unchecking never claws XP back (forgiveness, same posture as checkTask).
+export function checkParkedThought(id: string, done: boolean, emit: (e: UiEvent) => void): void {
+  const wasDone = readParkingLot().find((i) => i.id === id)?.done ?? false;
+  const items = checkParked(id, done);
+  const item = items.find((i) => i.id === id);
+  emit({ t: 'parking_lot', items });
+  if (item && done && !wasDone) emit({ t: 'parked_checked', id, xpTotal: addXp(1) });
+  else if (item) emit({ t: 'parked_checked', id, xpTotal: readXp() });
 }
 
 // v1.4 — 3-line card, pure derivation, no LLM.

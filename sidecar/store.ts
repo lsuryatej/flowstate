@@ -74,12 +74,15 @@ export function writePlan(plan: Plan): void {
 
 export function readParkingLot(): ParkedItem[] {
   const items = readJson<ParkedItem[]>(lotJsonPath, []);
-  return Array.isArray(items) ? items : [];
+  if (!Array.isArray(items)) return [];
+  // Migrate legacy items (pre-triage) to carry a stable id + done flag.
+  return items.map((item) => ({ ...item, id: item.id ?? 'p' + item.ts, done: item.done ?? false }));
 }
 
 /** Append one thought: markdown (the human-readable record) + json mirror. */
 export function park(text: string, task: string | null): ParkedItem[] {
-  const item: ParkedItem = { text, task, ts: Date.now() };
+  const ts = Date.now();
+  const item: ParkedItem = { id: 'p' + ts, text, task, ts, done: false };
   const items = [...readParkingLot(), item];
   writeJson(lotJsonPath, items);
   try {
@@ -88,6 +91,25 @@ export function park(text: string, task: string | null): ParkedItem[] {
     appendFileSync(lotMdPath, `- ${new Date(item.ts).toISOString()} — ${text}${tag}\n`);
   } catch {
     // best-effort
+  }
+  return items;
+}
+
+/** Triage / can forget: flip an item's done flag, mirror to json, log on false->true. */
+export function checkParked(id: string, done: boolean): ParkedItem[] {
+  const items = readParkingLot();
+  const item = items.find((i) => i.id === id);
+  if (!item) return items;
+  const wasDone = item.done;
+  item.done = done;
+  writeJson(lotJsonPath, items);
+  if (done && !wasDone) {
+    try {
+      mkdirSync(dataDir, { recursive: true });
+      appendFileSync(lotMdPath, `- ${new Date().toISOString()} — [done] ${item.text}\n`);
+    } catch {
+      // best-effort
+    }
   }
   return items;
 }

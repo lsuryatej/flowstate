@@ -154,6 +154,12 @@ function reduce(s: AppState, a: Action): AppState {
     }
     case 'parking_lot':
       return { ...s, parkingLot: e.items };
+    case 'parked_checked': {
+      // Quiet triage tick: XP updates silently, no chime, no checksCompleted
+      // bump (that field is what drives the chime effect in App.tsx).
+      const gained = Math.max(0, e.xpTotal - s.xpTotal);
+      return { ...s, xpTotal: e.xpTotal, xpGained: gained > 0 ? gained : s.xpGained };
+    }
     case 'recovery':
       return { ...s, recovery: { where: e.where, next: e.next, blocked: e.blocked } };
     // ---- v2 ----

@@ -11,9 +11,11 @@ export interface PlanItem {
 
 // v1: one captured stray thought (REQUIREMENTS v1.3).
 export interface ParkedItem {
+  id: string;
   text: string;
   task: string | null; // task in focus when captured
   ts: number; // epoch ms
+  done: boolean;
 }
 
 // v2: the four SDK permission modes we surface. `default` = ask before
@@ -80,6 +82,7 @@ export type UiEvent =
   | { t: 'plan'; goal: string; items: PlanItem[] } // v1.2: current checklist (emitted on decompose, check, boot)
   | { t: 'task_checked'; id: string; xpTotal: number } // v1.2: one completion hit per check (sidecar granted XP)
   | { t: 'parking_lot'; items: ParkedItem[] } // v1.3: current lot (emitted on park, boot)
+  | { t: 'parked_checked'; id: string; xpTotal: number } // triage XP tick, no chime
   | { t: 'recovery'; where: string; next: string; blocked: string } // v1.4: 3-line card, derived, no LLM
   // ---- v2 (model + permissions + path) ----
   | { t: 'permission_request'; id: string; tool: string; summary: string } // canUseTool round-trip: agent asks, UI answers with permission_response
@@ -97,6 +100,7 @@ export type ControlMsg =
   | { type: 'decompose'; goal: string; cwd?: string } // v1.2: fuzzy goal -> Haiku -> plan
   | { type: 'check_task'; id: string; done: boolean } // v1.2: persists, +1 XP when checking, emits task_checked + plan
   | { type: 'park'; text: string } // v1.3: appends to parking-lot.md, emits parking_lot
+  | { type: 'check_parked'; id: string; done: boolean } // triage / can forget: persists, +1 XP on first check, emits parked_checked + parking_lot
   | { type: 'get_recovery' } // v1.4: emits recovery (and plan + parking_lot snapshots)
   // ---- v2 ----
   | { type: 'set_model'; model: string } // switch model (start-time + mid-session via setModel)

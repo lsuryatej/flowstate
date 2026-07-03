@@ -11,6 +11,7 @@ interface ParkingLotProps {
   items: ParkedItem[];
   onPark: (text: string) => void;
   onClose: () => void;
+  onCheck: (id: string, done: boolean) => void;
 }
 
 function ago(ts: number): string {
@@ -25,7 +26,7 @@ function ago(ts: number): string {
   return `${d}d ago`;
 }
 
-function ParkingLot({ open, items, onPark, onClose }: ParkingLotProps) {
+function ParkingLot({ open, items, onPark, onClose, onCheck }: ParkingLotProps) {
   const [draft, setDraft] = useState('');
   const inputRef = useRef<HTMLInputElement>(null);
 
@@ -76,16 +77,32 @@ function ParkingLot({ open, items, onPark, onClose }: ParkingLotProps) {
         {sorted.length > 0 ? (
           <ul className="space-y-1.5 max-h-64 overflow-y-auto">
             {sorted.map((item) => (
-              <li key={item.ts} className="border-b border-coal-800/60 pb-1.5 last:border-b-0 last:pb-0">
-                {/* the thought itself must be fully readable — never clipped */}
-                <div className="whitespace-pre-wrap break-words text-sm text-coal-300">{item.text}</div>
-                {/* meta: the task/prompt in focus WHEN you parked this, labelled
-                    "while:" so it reads as context, not a stray command */}
-                <div className="font-mono text-[11px] text-coal-600">
-                  {item.task && (
-                    <span title="what was in focus when you parked this thought">while: {item.task} · </span>
-                  )}
-                  {ago(item.ts)}
+              <li key={item.id} className="flex items-start gap-2 border-b border-coal-800/60 pb-1.5 last:border-b-0 last:pb-0">
+                {/* triage / can forget: a quiet checkbox, not a task completion */}
+                <input
+                  type="checkbox"
+                  checked={item.done}
+                  onChange={(e) => onCheck(item.id, e.currentTarget.checked)}
+                  className="mt-1 accent-[color:var(--color-ember-500)] cursor-pointer"
+                  title="triage / can forget"
+                />
+                <div className="min-w-0 flex-1">
+                  {/* the thought itself must be fully readable — never clipped */}
+                  <div
+                    className={`whitespace-pre-wrap break-words text-sm ${
+                      item.done ? 'text-coal-600 line-through' : 'text-coal-300'
+                    }`}
+                  >
+                    {item.text}
+                  </div>
+                  {/* meta: the task/prompt in focus WHEN you parked this, labelled
+                      "while:" so it reads as context, not a stray command */}
+                  <div className="font-mono text-[11px] text-coal-600">
+                    {item.task && (
+                      <span title="what was in focus when you parked this thought">while: {item.task} · </span>
+                    )}
+                    {ago(item.ts)}
+                  </div>
                 </div>
               </li>
             ))}

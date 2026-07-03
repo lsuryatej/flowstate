@@ -5,7 +5,16 @@
 import { existsSync } from 'node:fs';
 import { createInterface } from 'node:readline';
 import { AgentSession, resolveCwd } from './agentSession.js';
-import { suggestNextTask, decompose, checkTask, parkThought, emitRecovery, trackPosition, trackPrompt } from './exec.js';
+import {
+  suggestNextTask,
+  decompose,
+  checkTask,
+  parkThought,
+  checkParkedThought,
+  emitRecovery,
+  trackPosition,
+  trackPrompt,
+} from './exec.js';
 import type { ControlMsg, UiEvent } from '../shared/uiEvents.js';
 
 function emit(e: UiEvent): void {
@@ -46,6 +55,8 @@ rl.on('line', (line) => {
     checkTask(msg.id, msg.done, emit);
   } else if (msg.type === 'park') {
     parkThought(msg.text, emit);
+  } else if (msg.type === 'check_parked') {
+    checkParkedThought(msg.id, msg.done, emit);
   } else if (msg.type === 'get_recovery') {
     emitRecovery(emit);
   } else if (msg.type === 'set_model') {

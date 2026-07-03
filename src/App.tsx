@@ -282,6 +282,10 @@ function App() {
 
   const onPark = useCallback((text: string) => void sendControl({ type: 'park', text }), [sendControl]);
   const onCheck = useCallback((id: string, done: boolean) => void sendControl({ type: 'check_task', id, done }), [sendControl]);
+  const onCheckParked = useCallback(
+    (id: string, done: boolean) => void sendControl({ type: 'check_parked', id, done }),
+    [sendControl],
+  );
 
   // v2: model + permission mode switchers (persist, then tell the sidecar).
   const changeModel = useCallback(
@@ -629,7 +633,13 @@ function App() {
           {/* v1.3: parking lot (Cmd+J opens capture) */}
           {(lotOpen || state.parkingLot.length > 0) && (
             <div className="fs-hairline-t">
-              <ParkingLot open={lotOpen} items={state.parkingLot} onPark={onPark} onClose={() => setLotOpen(false)} />
+              <ParkingLot
+                open={lotOpen}
+                items={state.parkingLot}
+                onPark={onPark}
+                onClose={() => setLotOpen(false)}
+                onCheck={onCheckParked}
+              />
             </div>
           )}
 
