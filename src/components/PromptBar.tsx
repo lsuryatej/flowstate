@@ -28,9 +28,9 @@ function PromptBar({ working, onSend, onInterrupt }: PromptBarProps) {
 
   return (
     <div
-      className={`fs-raised flex items-end gap-2 rounded-xl border bg-coal-900 p-2 transition-colors duration-200 ease-[cubic-bezier(0.16,1,0.3,1)] ${
-        focused ? 'border-ember-500/40' : 'border-coal-800'
-      }`}
+      className={`flex items-end gap-2 rounded-xl border bg-coal-900 p-2 transition-colors duration-200 ease-[cubic-bezier(0.16,1,0.3,1)] ${
+        working ? 'fs-heat' : 'fs-raised'
+      } ${focused ? 'border-ember-500/40' : 'border-coal-800'}`}
     >
       <textarea
         className="max-h-40 min-h-[2.5rem] flex-1 resize-none bg-transparent px-2 py-1 text-sm leading-relaxed text-coal-100 outline-none placeholder:text-coal-600"

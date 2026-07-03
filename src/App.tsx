@@ -378,6 +378,9 @@ function App() {
 
   return (
     <div className="flex max-h-[100dvh] min-h-[100dvh] flex-col bg-coal-950 font-sans text-coal-300 antialiased">
+      {/* warm film grain over the whole surface (fixed, non-interactive) */}
+      <div className="fs-grain" aria-hidden="true" />
+
       {/* top bar: identity + repo + key + xp. Nothing else earns this row. */}
       <header className="flex h-11 shrink-0 items-center gap-4 border-b border-coal-800/70 px-4">
         <span className="flex items-center gap-2">

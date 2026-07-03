@@ -12,7 +12,7 @@ interface RecoveryCardProps {
 
 function RecoveryCard({ where, next, blocked, onDismiss }: RecoveryCardProps) {
   return (
-    <div className="rounded-xl border border-coal-800 bg-coal-900 fs-raised fs-settle-in p-5 space-y-3">
+    <div className="fs-glass fs-settle-in rounded-xl p-5 space-y-3">
       <div className="flex items-center gap-3">
         <span className="font-mono text-[10px] uppercase tracking-[0.14em] text-coal-500 w-16 shrink-0">where</span>
         <span className="text-sm text-coal-100 truncate">{where}</span>
