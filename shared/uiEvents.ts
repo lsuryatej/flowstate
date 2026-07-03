@@ -92,7 +92,7 @@ export type UiEvent =
   // ---- v3 (session continuity) ----
   | { t: 'history'; items: { role: 'user' | 'assistant'; text: string }[] } // full transcript replace on resume
   | { t: 'resumed'; sessionId: string } // a prior session was resumed
-  | { t: 'auth_status'; method: 'subscription' | 'api_key'; email?: string; plan?: string } // surfaced after the session initializes
+  | { t: 'auth_status'; method: 'subscription' | 'api_key' | 'none'; email?: string; plan?: string } // surfaced after the session initializes
   | { t: 'recent_projects'; items: { cwd: string; lastPrompt: string; lastSeen: number }[] }; // the "where was I" list
 
 // Control messages the webview sends toward the sidecar

@@ -50,7 +50,7 @@ export interface AppState {
   cwdStatus: { valid: boolean; resolved: string; message?: string } | null;
   // ---- v3 ----
   resumed: boolean; // a prior session was resumed on boot (drives the chip)
-  auth: { method: 'subscription' | 'api_key'; email?: string; plan?: string } | null;
+  auth: { method: 'subscription' | 'api_key' | 'none'; email?: string; plan?: string } | null;
   recentProjects: { cwd: string; lastPrompt: string; lastSeen: number }[];
 }
 

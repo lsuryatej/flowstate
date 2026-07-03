@@ -489,11 +489,25 @@ function App() {
             title={
               state.auth.method === 'subscription'
                 ? `Signed in with your Claude subscription${state.auth.email ? ` (${state.auth.email})` : ''}${state.auth.plan ? ` · ${state.auth.plan}` : ''}`
-                : 'Authenticated with an API key (usage-billed). Remove the key to fall back to a Claude subscription login, if you have one.'
+                : state.auth.method === 'api_key'
+                  ? 'Authenticated with an API key (usage-billed). Remove the key to fall back to a Claude subscription login, if you have one.'
+                  : 'Not signed in. Run `claude` then /login in a terminal, or paste an API key.'
             }
           >
-            <span className={`inline-block h-1.5 w-1.5 rounded-full ${state.auth.method === 'subscription' ? 'bg-emerald-500/70' : 'bg-coal-500'}`} />
-            {state.auth.method === 'subscription' ? (state.auth.plan ?? 'subscription') : 'api key'}
+            <span
+              className={`inline-block h-1.5 w-1.5 rounded-full ${
+                state.auth.method === 'subscription'
+                  ? 'bg-emerald-500/70'
+                  : state.auth.method === 'api_key'
+                    ? 'bg-coal-500'
+                    : 'bg-ember-500/70'
+              }`}
+            />
+            {state.auth.method === 'subscription'
+              ? (state.auth.plan ?? 'subscription')
+              : state.auth.method === 'api_key'
+                ? 'api key'
+                : 'not signed in'}
           </span>
         )}
         {keyOpen ? (

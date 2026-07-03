@@ -259,10 +259,20 @@ export class AgentSession {
     if (!this.q) return;
     try {
       const a = await this.q.accountInfo();
-      const method = a.apiKeySource === 'oauth' ? 'subscription' : 'api_key';
+      // Log the raw shape once so auth confusion is diagnosable from stderr.
+      this.log(
+        `accountInfo: apiKeySource=${a.apiKeySource} tokenSource=${a.tokenSource} subscriptionType=${a.subscriptionType} apiProvider=${a.apiProvider} email=${a.email}`,
+      );
+      // A subscription can report through any of these, depending on the login
+      // flow — checking only apiKeySource==='oauth' mislabels it as an API key.
+      const sub = a.apiKeySource === 'oauth' || a.tokenSource === 'oauth' || Boolean(a.subscriptionType);
+      // A real pasted/env key surfaces as a concrete apiKeySource.
+      const key = Boolean(a.apiKeySource) && a.apiKeySource !== 'oauth';
+      const method: 'subscription' | 'api_key' | 'none' = sub ? 'subscription' : key ? 'api_key' : 'none';
       this.emit({ t: 'auth_status', method, email: a.email, plan: a.subscriptionType });
     } catch (err) {
       this.log(`accountInfo failed: ${err}`);
+      this.emit({ t: 'auth_status', method: 'none' });
     }
   }
 
