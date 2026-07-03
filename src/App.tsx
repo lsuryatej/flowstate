@@ -88,6 +88,9 @@ function App() {
   const [lotOpen, setLotOpen] = useState(false);
   const [showRecovery, setShowRecovery] = useState(false);
   const [scratchFocused, setScratchFocused] = useState(false);
+  // Pre-turn capture: lets the user open the scratchpad while idle+empty to
+  // jot intent BEFORE sending (law 1: the note often IS the first keystroke).
+  const [scratchPinned, setScratchPinned] = useState(false);
   // v2: model + permission mode are user prefs (persisted); the sidecar is told
   // on boot and on every change. The pickers read from these, not from the
   // echoed session_config, so switching never races the round-trip.
@@ -216,6 +219,7 @@ function App() {
         return;
       }
       setScratch(EMPTY_SCRATCH); // fresh capture per turn
+      setScratchPinned(false); // a pre-turn pin has served its purpose
       send(text, dir);
     },
     [cwd, send, sendControl],
@@ -287,6 +291,21 @@ function App() {
     });
   }, [keyDraft]);
 
+  const removeKey = useCallback(() => {
+    void invoke('clear_api_key').then(() => {
+      setHasKey(false);
+      setKeyDraft('');
+      setKeyOpen(false);
+    });
+  }, []);
+
+  // Open the scratchpad while idle (pre-turn capture) and land the cursor in
+  // the first field — the affordance IS the first keystroke (law 1).
+  const openScratch = useCallback(() => {
+    setScratchPinned(true);
+    window.setTimeout(() => document.getElementById('fs-scratchpad-expect')?.focus(), 50);
+  }, []);
+
   // The scratchpad is capture, not distraction (laws 4/5/6): it must survive
   // the turn ending so a mid-thought note stays visible and editable instead of
   // snapping shut. It stays open while the agent works, while it holds a
@@ -294,7 +313,7 @@ function App() {
   // send. The game, being a pure distraction, still yields the instant work is
   // ready (law 3).
   const hasScratch = Boolean(scratch.expect || scratch.verify || scratch.fallback);
-  const scratchVisible = fillerMode === 'scratchpad' && (deadZone || hasScratch || scratchFocused);
+  const scratchVisible = fillerMode === 'scratchpad' && (deadZone || hasScratch || scratchFocused || scratchPinned);
   const gameVisible = deadZone && fillerMode === 'game';
   const working = state.mode === 'working';
   const elapsed = useElapsedLabel(state.turnStartedAt);
@@ -379,6 +398,15 @@ function App() {
             >
               save
             </button>
+            {hasKey && (
+              <button
+                className="rounded-md px-2 py-1 text-xs text-coal-500 transition-colors duration-200 hover:text-coal-200"
+                onClick={removeKey}
+                title="Delete the key from the keychain; the app falls back to your environment / claude login"
+              >
+                remove
+              </button>
+            )}
             <button
               className="rounded-md px-2 py-1 text-xs text-coal-500 transition-colors duration-200 hover:text-coal-200"
               onClick={() => setKeyOpen(false)}
@@ -482,7 +510,21 @@ function App() {
 
           {/* filler config: persistent one-click toggle (law 13) */}
           <div className="fs-hairline-t flex items-center justify-between px-4 py-1.5">
-            <span className="font-mono text-[10px] uppercase tracking-[0.14em] text-coal-600">dead zone</span>
+            <span className="flex items-center gap-2">
+              <span className="font-mono text-[10px] uppercase tracking-[0.14em] text-coal-600">dead zone</span>
+              {/* pre-turn capture: only offered when the scratchpad is chosen
+                  but collapsed — one click to jot intent before sending */}
+              {fillerMode === 'scratchpad' && !scratchVisible && (
+                <button
+                  type="button"
+                  onClick={openScratch}
+                  className="rounded px-1 py-0.5 font-mono text-[10px] text-coal-600 transition-colors duration-200 hover:text-ember-400"
+                  title="Jot what you expect before you send"
+                >
+                  + note
+                </button>
+              )}
+            </span>
             <FillerToggle
               mode={fillerMode}
               onChange={setFillerMode}

@@ -161,6 +161,17 @@ fn has_api_key() -> bool {
     stored_api_key().is_some()
 }
 
+/// Remove the key from the keychain and restart the sidecar without it (it
+/// falls back to the inherited environment / `claude /login`, same as before
+/// a key was ever pasted).
+#[tauri::command]
+fn clear_api_key(app: AppHandle) -> Result<(), String> {
+    keychain_entry()?
+        .delete_credential()
+        .map_err(|e| e.to_string())?;
+    respawn_sidecar(&app)
+}
+
 #[tauri::command]
 fn restart_session(app: AppHandle) -> Result<(), String> {
     respawn_sidecar(&app)
@@ -178,6 +189,7 @@ pub fn run() {
             send_control,
             set_api_key,
             has_api_key,
+            clear_api_key,
             restart_session
         ])
         .setup(|app| {
