@@ -24,7 +24,7 @@ function Scratchpad({ visible, value, onChange }: ScratchpadProps) {
           <input
             id="fs-scratchpad-expect"
             type="text"
-            className="bg-transparent border-0 border-b border-coal-800 rounded-none px-0 py-1.5 text-sm text-coal-200 outline-none focus:border-ember-500/50"
+            className="w-full bg-transparent border-0 border-b border-coal-800 rounded-none px-0 py-1.5 text-sm text-coal-200 outline-none focus:border-ember-500/50"
             value={value.expect}
             onChange={(e) => onChange({ ...value, expect: e.currentTarget.value })}
             tabIndex={visible ? 0 : -1}
@@ -38,7 +38,7 @@ function Scratchpad({ visible, value, onChange }: ScratchpadProps) {
           <input
             id="fs-scratchpad-verify"
             type="text"
-            className="bg-transparent border-0 border-b border-coal-800 rounded-none px-0 py-1.5 text-sm text-coal-200 outline-none focus:border-ember-500/50"
+            className="w-full bg-transparent border-0 border-b border-coal-800 rounded-none px-0 py-1.5 text-sm text-coal-200 outline-none focus:border-ember-500/50"
             value={value.verify}
             onChange={(e) => onChange({ ...value, verify: e.currentTarget.value })}
             tabIndex={visible ? 0 : -1}
@@ -52,7 +52,7 @@ function Scratchpad({ visible, value, onChange }: ScratchpadProps) {
           <input
             id="fs-scratchpad-fallback"
             type="text"
-            className="bg-transparent border-0 border-b border-coal-800 rounded-none px-0 py-1.5 text-sm text-coal-200 outline-none focus:border-ember-500/50"
+            className="w-full bg-transparent border-0 border-b border-coal-800 rounded-none px-0 py-1.5 text-sm text-coal-200 outline-none focus:border-ember-500/50"
             value={value.fallback}
             onChange={(e) => onChange({ ...value, fallback: e.currentTarget.value })}
             tabIndex={visible ? 0 : -1}

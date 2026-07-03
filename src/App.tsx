@@ -60,6 +60,51 @@ function usePersisted<T extends string>(key: string, fallback: T): [T, (v: T) =>
   return [value, set];
 }
 
+// A draggable divider between the work column and the loop rail. Width is
+// clamped and persisted; the handle lives in <main> (not the scrolling rail)
+// so it stays pinned to the seam regardless of rail scroll position.
+const RAIL_MIN = 300;
+const RAIL_MAX = 760;
+function useRailResize(mainRef: React.RefObject<HTMLElement | null>) {
+  const [width, setWidth] = useState(() => {
+    const saved = Number(localStorage.getItem('fs.railWidth'));
+    return saved >= RAIL_MIN && saved <= RAIL_MAX ? saved : 360;
+  });
+  const resizing = useRef(false);
+  const widthRef = useRef(width);
+  widthRef.current = width;
+
+  useEffect(() => {
+    const onMove = (e: PointerEvent) => {
+      if (!resizing.current || !mainRef.current) return;
+      const rect = mainRef.current.getBoundingClientRect();
+      setWidth(Math.min(RAIL_MAX, Math.max(RAIL_MIN, rect.right - e.clientX)));
+    };
+    const onUp = () => {
+      if (!resizing.current) return;
+      resizing.current = false;
+      document.body.style.cursor = '';
+      document.body.style.userSelect = '';
+      localStorage.setItem('fs.railWidth', String(Math.round(widthRef.current)));
+    };
+    window.addEventListener('pointermove', onMove);
+    window.addEventListener('pointerup', onUp);
+    return () => {
+      window.removeEventListener('pointermove', onMove);
+      window.removeEventListener('pointerup', onUp);
+    };
+  }, [mainRef]);
+
+  const start = useCallback((e: React.PointerEvent) => {
+    e.preventDefault();
+    resizing.current = true;
+    document.body.style.cursor = 'col-resize';
+    document.body.style.userSelect = 'none';
+  }, []);
+
+  return { width, start };
+}
+
 /** Law 7: the elapsed clock, always visible next to where the user looks. */
 function useElapsedLabel(turnStartedAt: number | null): string {
   const [now, setNow] = useState(() => Date.now());
@@ -91,6 +136,8 @@ function App() {
   // Pre-turn capture: lets the user open the scratchpad while idle+empty to
   // jot intent BEFORE sending (law 1: the note often IS the first keystroke).
   const [scratchPinned, setScratchPinned] = useState(false);
+  const mainRef = useRef<HTMLElement>(null);
+  const { width: railWidth, start: startRailResize } = useRailResize(mainRef);
   // v2: model + permission mode are user prefs (persisted); the sidecar is told
   // on boot and on every change. The pickers read from these, not from the
   // echoed session_config, so switching never races the round-trip.
@@ -449,8 +496,14 @@ function App() {
         />
       )}
 
-      {/* main: the work on the left, the loop rail on the right */}
-      <main className="grid min-h-0 flex-1 grid-cols-[1fr_360px]">
+      {/* main: the work on the left, the loop rail on the right. The rail width
+          is user-draggable via the seam handle below (law 12: the user tunes
+          the surface to what they need to see). */}
+      <main
+        ref={mainRef}
+        className="relative grid min-h-0 flex-1"
+        style={{ gridTemplateColumns: `minmax(0, 1fr) ${railWidth}px` }}
+      >
         <section className="flex min-h-0 flex-col px-5 pb-4 pt-3">
           <ResponsePane chat={state.chat} arriving={arriving} lastResult={state.lastResult} error={state.error} />
 
@@ -588,6 +641,24 @@ function App() {
             </p>
           )}
         </aside>
+
+        {/* resize seam: sits over the rail's left border, independent of its
+            scroll. Drag to widen/narrow the loop rail. */}
+        <div
+          role="separator"
+          aria-orientation="vertical"
+          aria-label="resize panels"
+          title="Drag to resize panels"
+          onPointerDown={startRailResize}
+          onDoubleClick={() => {
+            localStorage.setItem('fs.railWidth', '360');
+            window.location.reload();
+          }}
+          className="group absolute top-0 z-30 h-full w-2 -translate-x-1/2 cursor-col-resize"
+          style={{ right: railWidth }}
+        >
+          <div className="mx-auto h-full w-px bg-transparent transition-colors duration-150 group-hover:bg-ember-500/40" />
+        </div>
       </main>
     </div>
   );

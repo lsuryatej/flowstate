@@ -49,7 +49,7 @@ function ParkingLot({ open, items, onPark, onClose }: ParkingLotProps) {
   const sorted = [...items].sort((a, b) => b.ts - a.ts);
 
   return (
-    <div className="w-[340px]">
+    <div className="w-full">
       <div className="flex items-center justify-between px-4 pt-3 pb-2">
         <span className="font-mono text-[10px] uppercase tracking-[0.14em] text-coal-500">parked</span>
         {items.length > 0 && (
@@ -77,9 +77,14 @@ function ParkingLot({ open, items, onPark, onClose }: ParkingLotProps) {
           <ul className="space-y-1.5 max-h-64 overflow-y-auto">
             {sorted.map((item) => (
               <li key={item.ts} className="border-b border-coal-800/60 pb-1.5 last:border-b-0 last:pb-0">
-                <div className="text-sm text-coal-300 truncate">{item.text}</div>
-                <div className="font-mono text-[11px] text-coal-600 truncate">
-                  {item.task ? `${item.task} · ` : ''}
+                {/* the thought itself must be fully readable — never clipped */}
+                <div className="whitespace-pre-wrap break-words text-sm text-coal-300">{item.text}</div>
+                {/* meta: the task/prompt in focus WHEN you parked this, labelled
+                    "while:" so it reads as context, not a stray command */}
+                <div className="font-mono text-[11px] text-coal-600">
+                  {item.task && (
+                    <span title="what was in focus when you parked this thought">while: {item.task} · </span>
+                  )}
                   {ago(item.ts)}
                 </div>
               </li>
