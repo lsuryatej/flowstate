@@ -1,0 +1,403 @@
+@import 'tailwindcss';
+
+/* ---------------------------------------------------------------------------
+   Flowstate tokens — "hearth" system.
+   One warm graphite neutral ramp (coal) + one accent (ember) that always
+   means "the agent is alive": working shimmer, elapsed clock, needs-you,
+   checks, arrival. No other hue exists. Failure states stay warm-neutral
+   (forgiveness beats guilt; nothing in this app is ever red).
+--------------------------------------------------------------------------- */
+
+@theme {
+  --color-*: initial;
+
+  /* warm graphite, hue 72, chroma tapering toward the extremes */
+  --color-coal-950: oklch(0.145 0.008 72);
+  --color-coal-900: oklch(0.18 0.009 72);
+  --color-coal-850: oklch(0.215 0.01 72);
+  --color-coal-800: oklch(0.26 0.01 72);
+  --color-coal-700: oklch(0.34 0.011 72);
+  --color-coal-600: oklch(0.44 0.011 72);
+  --color-coal-500: oklch(0.55 0.012 72);
+  --color-coal-400: oklch(0.65 0.012 72);
+  --color-coal-300: oklch(0.76 0.01 72);
+  --color-coal-200: oklch(0.85 0.009 76);
+  --color-coal-100: oklch(0.93 0.007 80);
+
+  /* ember — the agent's heat */
+  --color-ember-600: oklch(0.6 0.125 60);
+  --color-ember-500: oklch(0.72 0.14 68);
+  --color-ember-400: oklch(0.8 0.12 74);
+  --color-ember-300: oklch(0.87 0.09 80);
+
+  --font-sans:
+    -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif;
+  --font-mono:
+    ui-monospace, 'SF Mono', SFMono-Regular, Menlo, monospace;
+
+  --ease-snap: cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+/* The one shadow vocabulary: warm-tinted, used only where elevation is
+   meaningful (prompt bar anchor, recovery card interrupt). */
+@utility fs-raised {
+  box-shadow:
+    0 1px 0 oklch(0.26 0.01 72 / 0.9) inset,
+    0 8px 24px -12px oklch(0.1 0.02 60 / 0.8);
+}
+
+@utility fs-hairline-t {
+  border-top: 1px solid oklch(0.26 0.01 72 / 0.7);
+}
+
+@utility fs-hairline-b {
+  border-bottom: 1px solid oklch(0.26 0.01 72 / 0.7);
+}
+
+/* ---------------------------------------------------------------------------
+   Markdown prose (.fs-md) — the assistant's rendered output. Coal/ember only,
+   tuned for the 68ch reading column. Kept as scoped CSS (not per-element
+   Tailwind) because react-markdown emits raw tags.
+--------------------------------------------------------------------------- */
+.fs-md {
+  color: var(--color-coal-200);
+  font-size: 0.875rem;
+  line-height: 1.65;
+  overflow-wrap: anywhere;
+}
+.fs-md > :first-child {
+  margin-top: 0;
+}
+.fs-md > :last-child {
+  margin-bottom: 0;
+}
+.fs-md p {
+  margin: 0.7em 0;
+}
+.fs-md h1,
+.fs-md h2,
+.fs-md h3,
+.fs-md h4 {
+  color: var(--color-coal-100);
+  font-weight: 600;
+  line-height: 1.3;
+  margin: 1.3em 0 0.5em;
+}
+.fs-md h1 {
+  font-size: 1.2rem;
+}
+.fs-md h2 {
+  font-size: 1.08rem;
+}
+.fs-md h3 {
+  font-size: 0.98rem;
+}
+.fs-md h4 {
+  font-size: 0.9rem;
+  color: var(--color-coal-200);
+}
+.fs-md strong {
+  color: var(--color-coal-100);
+  font-weight: 600;
+}
+.fs-md em {
+  font-style: italic;
+}
+.fs-md a {
+  color: var(--color-ember-400);
+  text-decoration: underline;
+  text-underline-offset: 2px;
+  cursor: pointer;
+}
+.fs-md ul,
+.fs-md ol {
+  margin: 0.6em 0;
+  padding-left: 1.35em;
+}
+.fs-md ul {
+  list-style: disc;
+}
+.fs-md ol {
+  list-style: decimal;
+}
+.fs-md li {
+  margin: 0.25em 0;
+}
+.fs-md li::marker {
+  color: var(--color-coal-500);
+}
+.fs-md code {
+  font-family: var(--font-mono);
+  font-size: 0.85em;
+  color: var(--color-coal-100);
+  background: var(--color-coal-900);
+  padding: 0.12em 0.35em;
+  border-radius: 0.3em;
+}
+.fs-md pre {
+  margin: 0.85em 0;
+  padding: 0.8em 0.9em;
+  background: var(--color-coal-900);
+  border: 1px solid var(--color-coal-800);
+  border-radius: 0.5rem;
+  overflow-x: auto;
+}
+.fs-md pre code {
+  background: transparent;
+  padding: 0;
+  color: var(--color-coal-200);
+  font-size: 0.82rem;
+  line-height: 1.5;
+}
+.fs-md blockquote {
+  margin: 0.8em 0;
+  padding-left: 0.9em;
+  border-left: 2px solid var(--color-coal-700);
+  color: var(--color-coal-400);
+  font-style: italic;
+}
+.fs-md hr {
+  border: 0;
+  border-top: 1px solid var(--color-coal-800);
+  margin: 1.2em 0;
+}
+.fs-md table {
+  display: block;
+  width: max-content;
+  max-width: 100%;
+  overflow-x: auto;
+  border-collapse: collapse;
+  margin: 0.85em 0;
+  font-size: 0.82rem;
+}
+.fs-md th,
+.fs-md td {
+  border: 1px solid var(--color-coal-800);
+  padding: 0.35em 0.6em;
+  text-align: left;
+}
+.fs-md th {
+  color: var(--color-coal-100);
+  font-weight: 600;
+  background: var(--color-coal-900);
+}
+.fs-md input[type='checkbox'] {
+  margin-right: 0.4em;
+  accent-color: var(--color-ember-500);
+}
+
+/* ---------------------------------------------------------------------------
+   Effort slider (.fs-effort-range) — a real native range input, styled flush
+   with the coal/ember theme. --fs-fill (0-100%) is set inline per render to
+   paint the ember progress up to the thumb.
+--------------------------------------------------------------------------- */
+.fs-effort-range {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 100%;
+  height: 14px;
+  background: transparent;
+  outline: none;
+  cursor: pointer;
+  margin: 0;
+}
+.fs-effort-range::-webkit-slider-runnable-track {
+  height: 2px;
+  border-radius: 999px;
+  background: linear-gradient(
+    to right,
+    var(--color-ember-500) var(--fs-fill),
+    var(--color-coal-800) var(--fs-fill)
+  );
+}
+.fs-effort-range::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 14px;
+  height: 14px;
+  margin-top: -6px;
+  border-radius: 50%;
+  background: var(--color-coal-100);
+  border: none;
+  transition: transform 150ms var(--ease-snap);
+}
+.fs-effort-range::-webkit-slider-thumb:hover,
+.fs-effort-range:focus-visible::-webkit-slider-thumb {
+  transform: scale(1.15);
+}
+.fs-effort-range::-moz-range-track {
+  height: 2px;
+  border-radius: 999px;
+  background: var(--color-coal-800);
+}
+.fs-effort-range::-moz-range-progress {
+  height: 2px;
+  border-radius: 999px;
+  background: var(--color-ember-500);
+}
+.fs-effort-range::-moz-range-thumb {
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  background: var(--color-coal-100);
+  border: none;
+  transition: transform 150ms var(--ease-snap);
+}
+.fs-effort-range::-moz-range-thumb:hover {
+  transform: scale(1.15);
+}
+
+/* ---------------------------------------------------------------------------
+   Motion — transform/opacity only, ease-out family, state-conveying only.
+--------------------------------------------------------------------------- */
+
+/* Arrival: the focus snap. A brief ember bloom that settles into ivory. */
+@keyframes fs-arrive-scale {
+  0% {
+    transform: scale(0.985);
+  }
+  100% {
+    transform: scale(1);
+  }
+}
+
+@keyframes fs-arrive-ring {
+  0% {
+    box-shadow: 0 0 0 1px oklch(0.72 0.14 68 / 0.55);
+    opacity: 1;
+  }
+  100% {
+    box-shadow: 0 0 0 1px oklch(0.72 0.14 68 / 0);
+    opacity: 0;
+  }
+}
+
+.fs-arrive {
+  animation: fs-arrive-scale 500ms var(--ease-snap);
+}
+
+.fs-arrive::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  border-radius: inherit;
+  animation: fs-arrive-ring 500ms var(--ease-snap);
+}
+
+/* The agent's heartbeat while working. */
+@keyframes fs-pulse-dot {
+  0%,
+  100% {
+    opacity: 0.4;
+    transform: scale(0.85);
+  }
+  50% {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+.fs-pulse-dot {
+  animation: fs-pulse-dot 1.4s var(--ease-snap) infinite;
+}
+
+@keyframes fs-pulse-row {
+  0%,
+  100% {
+    opacity: 0.88;
+  }
+  50% {
+    opacity: 1;
+  }
+}
+
+.fs-pulse-row {
+  animation: fs-pulse-row 1.8s var(--ease-snap) infinite;
+}
+
+/* Ember sweep across the current activity line. */
+@keyframes fs-shimmer-sweep {
+  0% {
+    transform: translateX(-100%);
+    opacity: 0;
+  }
+  15% {
+    opacity: 0.55;
+  }
+  85% {
+    opacity: 0.55;
+  }
+  100% {
+    transform: translateX(100%);
+    opacity: 0;
+  }
+}
+
+.fs-shimmer {
+  background: linear-gradient(90deg, transparent, oklch(0.72 0.14 68 / 0.09), transparent);
+  animation: fs-shimmer-sweep 2.2s var(--ease-snap) infinite;
+}
+
+@keyframes fs-ellipsis {
+  0%,
+  100% {
+    opacity: 0;
+  }
+  50% {
+    opacity: 1;
+  }
+}
+
+.fs-ellipsis::after {
+  content: '...';
+  display: inline-block;
+  animation: fs-ellipsis 1.4s var(--ease-snap) infinite;
+}
+
+@keyframes fs-xp-tick {
+  0% {
+    transform: translate(-50%, 0);
+    opacity: 1;
+  }
+  100% {
+    transform: translate(-50%, -14px);
+    opacity: 0;
+  }
+}
+
+.fs-xp-tick {
+  animation: fs-xp-tick 800ms var(--ease-snap) forwards;
+}
+
+@keyframes fs-check-pop {
+  0% {
+    transform: scale(0.6);
+  }
+  60% {
+    transform: scale(1.15);
+  }
+  100% {
+    transform: scale(1);
+  }
+}
+
+.fs-check-pop {
+  animation: fs-check-pop 300ms var(--ease-snap);
+}
+
+/* Recovery card entrance: the one deliberate interrupt in the app. */
+@keyframes fs-settle-in {
+  0% {
+    transform: translateY(-6px);
+    opacity: 0;
+  }
+  100% {
+    transform: translateY(0);
+    opacity: 1;
+  }
+}
+
+.fs-settle-in {
+  animation: fs-settle-in 350ms var(--ease-snap);
+}
