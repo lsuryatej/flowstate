@@ -99,7 +99,7 @@ export type UiEvent =
 // Control messages the webview sends toward the sidecar
 // (webview -> Tauri command -> Rust -> sidecar stdin, one JSON per line).
 export type ControlMsg =
-  | { type: 'prompt'; text: string; cwd?: string }
+  | { type: 'prompt'; text: string; cwd?: string; attachments?: string[] } // attachments = absolute file paths; sidecar reads + builds content blocks
   | { type: 'interrupt' }
   // ---- v1 ----
   | { type: 'suggest_next_task'; cwd?: string } // v1.1: reads cwd's STATE.md + plan -> one Haiku call -> next_task

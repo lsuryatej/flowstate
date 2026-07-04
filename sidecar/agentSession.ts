@@ -8,9 +8,9 @@
 // round-trip: the agent asks, the webview answers (permission_request ->
 // permission_response). See shared/uiEvents.ts for the contract.
 
-import { existsSync } from 'node:fs';
+import { existsSync, readFileSync, statSync } from 'node:fs';
 import { homedir } from 'node:os';
-import { resolve } from 'node:path';
+import { basename, extname, resolve } from 'node:path';
 import { query, getSessionMessages } from '@anthropic-ai/claude-agent-sdk';
 import type {
   Query,
@@ -19,6 +19,7 @@ import type {
   PermissionMode as SdkPermissionMode,
   PermissionResult,
 } from '@anthropic-ai/claude-agent-sdk';
+import type { ContentBlockParam } from '@anthropic-ai/sdk/resources';
 import { Normalizer } from './normalize.js';
 import { readSessionPointer, writeSessionPointer } from './store.js';
 import {
@@ -49,6 +50,41 @@ function summarize(tool: string, input: Record<string, unknown>): string {
   if (typeof arg !== 'string' || !arg) return tool;
   const flat = arg.replace(/\s+/g, ' ');
   return `${tool} ${flat.length > 80 ? flat.slice(0, 79) + '…' : flat}`;
+}
+
+const IMAGE_TYPES: Record<string, 'image/png' | 'image/jpeg' | 'image/gif' | 'image/webp'> = {
+  '.png': 'image/png',
+  '.jpg': 'image/jpeg',
+  '.jpeg': 'image/jpeg',
+  '.gif': 'image/gif',
+  '.webp': 'image/webp',
+};
+const MAX_IMAGE_BYTES = 5 * 1024 * 1024;
+const MAX_TEXT_BYTES = 100 * 1024;
+const MAX_ATTACHMENTS = 4;
+
+/** File path -> content block. Images become base64 blocks; everything else is inlined as text (best-effort). */
+function attachmentBlock(path: string, log: (s: string) => void): ContentBlockParam | null {
+  try {
+    const size = statSync(path).size;
+    const media = IMAGE_TYPES[extname(path).toLowerCase()];
+    if (media) {
+      if (size > MAX_IMAGE_BYTES) {
+        log(`attachment too large, skipping: ${path}`);
+        return null;
+      }
+      return { type: 'image', source: { type: 'base64', media_type: media, data: readFileSync(path).toString('base64') } };
+    }
+    if (size > MAX_TEXT_BYTES) {
+      log(`text attachment too large, skipping: ${path}`);
+      return null;
+    }
+    const body = readFileSync(path, 'utf8');
+    return { type: 'text', text: `── attached file: ${basename(path)} ──\n${body}` };
+  } catch (err) {
+    log(`attachment unreadable, skipping: ${path} (${err})`);
+    return null;
+  }
 }
 
 /** Flatten a transcript message's content (string or content-block array) to plain text. */
@@ -96,10 +132,15 @@ export class AgentSession {
     private log: (s: string) => void,
   ) {}
 
-  sendPrompt(text: string, cwd?: string): void {
+  sendPrompt(text: string, cwd?: string, attachments?: string[]): void {
+    const blocks = (attachments ?? [])
+      .slice(0, MAX_ATTACHMENTS)
+      .map((p) => attachmentBlock(p, this.log))
+      .filter((b): b is ContentBlockParam => b !== null);
+    const content = blocks.length ? [...blocks, { type: 'text', text } satisfies ContentBlockParam] : text;
     this.queue.push({
       type: 'user',
-      message: { role: 'user', content: text },
+      message: { role: 'user', content },
       parent_tool_use_id: null,
       session_id: '',
     } as SDKUserMessage);

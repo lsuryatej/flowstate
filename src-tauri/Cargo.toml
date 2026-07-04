@@ -26,4 +26,5 @@ tauri-plugin-notification = "2.3.3"
 keyring = { version = "3", features = ["apple-native"] }
 tauri-plugin-dialog = "2.7.1"
 tauri-plugin-global-shortcut = "2.3.2"
+base64 = "0.22.1"
 

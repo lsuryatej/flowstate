@@ -178,6 +178,47 @@ fn restart_session(app: AppHandle) -> Result<(), String> {
     respawn_sidecar(&app)
 }
 
+/// Interactive region screenshot via macOS `screencapture -i`. Returns the
+/// temp png path, or Err("cancelled") if the user escaped out (no file).
+#[tauri::command]
+fn capture_region_screenshot() -> Result<String, String> {
+    let path = std::env::temp_dir().join(format!(
+        "flowstate-shot-{}.png",
+        std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .unwrap()
+            .as_millis()
+    ));
+    let status = Command::new("screencapture")
+        .arg("-i")
+        .arg(&path)
+        .status()
+        .map_err(|e| e.to_string())?;
+    if !status.success() || !path.exists() {
+        return Err("cancelled".into());
+    }
+    Ok(path.to_string_lossy().into_owned())
+}
+
+/// Persist a pasted clipboard image (base64 png from the webview) to a temp
+/// file so it can ride the paths-only attachment pipe.
+#[tauri::command]
+fn save_temp_image(data_base64: String) -> Result<String, String> {
+    use base64::Engine;
+    let bytes = base64::engine::general_purpose::STANDARD
+        .decode(data_base64)
+        .map_err(|e| e.to_string())?;
+    let path = std::env::temp_dir().join(format!(
+        "flowstate-paste-{}.png",
+        std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .unwrap()
+            .as_millis()
+    ));
+    std::fs::write(&path, bytes).map_err(|e| e.to_string())?;
+    Ok(path.to_string_lossy().into_owned())
+}
+
 /// Show + focus the capture pill if hidden, hide it if already visible.
 /// Called from the global hotkey handler (⌥Space / Cmd+Shift+K fallback,
 /// see the capture-pill feature note). The `capture-shown` event lets the
@@ -217,7 +258,9 @@ pub fn run() {
             set_api_key,
             has_api_key,
             clear_api_key,
-            restart_session
+            restart_session,
+            capture_region_screenshot,
+            save_temp_image
         ])
         .setup(|app| {
             app.manage(Sidecar {

@@ -290,7 +290,7 @@ function App() {
   }, [state.checksCompleted, muted]);
 
   const onSend = useCallback(
-    (text: string) => {
+    (text: string, attachments: string[] = []) => {
       const dir = cwd.trim() || undefined;
       if (dir) localStorage.setItem('fs.cwd', dir);
       // v1.2: "/plan <goal>" routes to the decomposer instead of the agent.
@@ -301,7 +301,7 @@ function App() {
       }
       setScratch(EMPTY_SCRATCH); // fresh capture per turn
       setScratchPinned(false); // a pre-turn pin has served its purpose
-      send(text, dir);
+      send(text, dir, attachments.length ? attachments : undefined);
     },
     [cwd, send, sendControl],
   );

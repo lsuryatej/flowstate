@@ -23,7 +23,7 @@ export interface ScratchpadEntry {
 
 export interface PromptBarProps {
   working: boolean;
-  onSend: (text: string) => void;
+  onSend: (text: string, attachments: string[]) => void;
   onInterrupt: () => void;
 }
 

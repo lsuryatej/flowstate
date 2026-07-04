@@ -26,7 +26,11 @@ export function useAgent(onEvent: (e: UiEvent) => void) {
     };
   }, []);
 
-  const send = useCallback((text: string, cwd?: string) => invoke('send_prompt', { text, cwd }), []);
+  const send = useCallback(
+    (text: string, cwd?: string, attachments?: string[]) =>
+      invoke('send_control', { msg: { type: 'prompt', text, cwd, attachments } }),
+    [],
+  );
   const interrupt = useCallback(() => invoke('interrupt'), []);
   // v1: everything else goes through the generic ControlMsg pass-through.
   const sendControl = useCallback((msg: ControlMsg) => invoke('send_control', { msg }), []);

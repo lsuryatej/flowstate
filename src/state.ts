@@ -230,10 +230,11 @@ export function useAppState() {
 
   const cwdRef = useRef<string | undefined>(undefined);
   const send = useCallback(
-    (text: string, cwd?: string) => {
+    (text: string, cwd?: string, attachments?: string[]) => {
       if (cwd) cwdRef.current = cwd;
-      dispatch({ kind: 'user_prompt', text });
-      void rawSend(text, cwdRef.current);
+      const display = attachments?.length ? `${text}\n· ${attachments.length} attached` : text;
+      dispatch({ kind: 'user_prompt', text: display });
+      void rawSend(text, cwdRef.current, attachments);
     },
     [rawSend],
   );

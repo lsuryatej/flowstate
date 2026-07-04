@@ -42,9 +42,11 @@ rl.on('line', (line) => {
   }
   if (msg.type === 'prompt') {
     setActiveProject(msg.cwd);
-    log(`prompt received (${msg.text.length} chars)${msg.cwd ? ` cwd=${msg.cwd}` : ''}`);
+    log(
+      `prompt received (${msg.text.length} chars)${msg.cwd ? ` cwd=${msg.cwd}` : ''}${msg.attachments?.length ? ` +${msg.attachments.length} attachments` : ''}`,
+    );
     trackPrompt(msg.text);
-    session.sendPrompt(msg.text, msg.cwd);
+    session.sendPrompt(msg.text, msg.cwd, msg.attachments);
   } else if (msg.type === 'interrupt') {
     log('interrupt received');
     void session.interrupt();
