@@ -15,11 +15,26 @@
         "title": "flowstate",
         "width": 800,
         "height": 600
+      },
+      {
+        "label": "capture",
+        "url": "capture.html",
+        "title": "capture",
+        "width": 560,
+        "height": 96,
+        "resizable": false,
+        "decorations": false,
+        "transparent": true,
+        "alwaysOnTop": true,
+        "skipTaskbar": true,
+        "visible": false,
+        "center": true
       }
     ],
     "security": {
       "csp": null
-    }
+    },
+    "macOSPrivateApi": true
   },
   "bundle": {
     "active": true,

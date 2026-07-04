@@ -8,6 +8,7 @@ use std::io::{BufRead, BufReader, Write};
 use std::process::{Child, ChildStdin, Command, Stdio};
 use std::sync::Mutex;
 use tauri::{AppHandle, Emitter, Manager, RunEvent, State};
+use tauri_plugin_global_shortcut::{GlobalShortcutExt, ShortcutState};
 
 const UI_EVENT_CHANNEL: &str = "ui-event";
 const KEYCHAIN_SERVICE: &str = "com.suryatejlalam.flowstate";
@@ -177,12 +178,38 @@ fn restart_session(app: AppHandle) -> Result<(), String> {
     respawn_sidecar(&app)
 }
 
+/// Show + focus the capture pill if hidden, hide it if already visible.
+/// Called from the global hotkey handler (⌥Space / Cmd+Shift+K fallback,
+/// see the capture-pill feature note). The `capture-shown` event lets the
+/// pill refocus/select its input each time it's summoned (SPEC IDEOLOGY §5:
+/// capture, don't switch).
+fn toggle_capture(app: &AppHandle) {
+    if let Some(w) = app.get_webview_window("capture") {
+        if w.is_visible().unwrap_or(false) {
+            let _ = w.hide();
+        } else {
+            let _ = w.show();
+            let _ = w.set_focus();
+            let _ = w.emit("capture-shown", ());
+        }
+    }
+}
+
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     tauri::Builder::default()
         .plugin(tauri_plugin_opener::init())
         .plugin(tauri_plugin_notification::init())
         .plugin(tauri_plugin_dialog::init())
+        .plugin(
+            tauri_plugin_global_shortcut::Builder::new()
+                .with_handler(|app, _shortcut, event| {
+                    if event.state == ShortcutState::Pressed {
+                        toggle_capture(app);
+                    }
+                })
+                .build(),
+        )
         .invoke_handler(tauri::generate_handler![
             send_prompt,
             interrupt,
@@ -198,6 +225,17 @@ pub fn run() {
                 stdin: Mutex::new(None),
             });
             respawn_sidecar(app.handle()).map_err(std::io::Error::other)?;
+
+            // Global capture-pill hotkey: ⌥Space, falling back to Cmd+Shift+K
+            // if the primary binding is already claimed by another app.
+            let global_shortcut = app.global_shortcut();
+            if let Err(e) = global_shortcut.register("Alt+Space") {
+                eprintln!("[hotkey] Alt+Space registration failed ({e}); trying CmdOrCtrl+Shift+K");
+                if let Err(e) = global_shortcut.register("CmdOrCtrl+Shift+K") {
+                    eprintln!("[hotkey] CmdOrCtrl+Shift+K registration also failed ({e})");
+                }
+            }
+
             Ok(())
         })
         .build(tauri::generate_context!())

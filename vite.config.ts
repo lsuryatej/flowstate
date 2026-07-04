@@ -30,4 +30,16 @@ export default defineConfig(async () => ({
       ignored: ["**/src-tauri/**"],
     },
   },
+
+  // Second entry: the always-on-top capture pill (see capture.html /
+  // src/capture.tsx). Tauri loads it as its own webview window ("capture"),
+  // so it needs its own bundle rather than being a route inside the main app.
+  build: {
+    rollupOptions: {
+      input: {
+        main: "index.html",
+        capture: "capture.html",
+      },
+    },
+  },
 }));
