@@ -1,17 +1,16 @@
 // View-state and component prop contracts. Presentational components import
 // ONLY from here (and React); all event plumbing stays in state.ts/useAgent.ts.
 
-export interface ChatItem {
-  role: 'user' | 'assistant';
-  text: string;
-}
-
 export interface ToolItem {
   id: number;
   tool: string;
   summary: string;
   status: 'running' | 'ok' | 'fail';
 }
+
+export type ChatItem =
+  | { role: 'user' | 'assistant'; text: string }
+  | { role: 'tools'; tools: ToolItem[] };
 
 /** Which dead-zone filler is active. Pure-HUD ('off') is first-class, not a fallback. */
 export type FillerMode = 'scratchpad' | 'game' | 'off';

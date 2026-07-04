@@ -6,6 +6,7 @@
 import { useEffect, useRef } from 'react';
 import type { ResponsePaneProps } from '../types';
 import Markdown from './Markdown';
+import ToolCallCard from './ToolCallCard';
 
 /** Flatten markdown to one clean line for the compact result status. */
 function stripMarkdown(s: string): string {
@@ -77,17 +78,21 @@ function ResponsePane({ chat, arriving, lastResult, error }: ResponsePaneProps) 
             <FirstRun />
           ) : (
             <div className="space-y-4">
-              {chat.map((item, i) =>
-                item.role === 'user' ? (
-                  <div key={i} className="flex justify-end">
-                    <p className="max-w-[80%] whitespace-pre-wrap break-words rounded-lg bg-coal-900/70 px-3 py-2 text-right text-xs leading-relaxed text-coal-400">
-                      {item.text}
-                    </p>
-                  </div>
-                ) : (
-                  <Markdown key={i}>{item.text}</Markdown>
-                ),
-              )}
+              {chat.map((item, i) => {
+                if (item.role === 'user') {
+                  return (
+                    <div key={i} className="flex justify-end">
+                      <p className="max-w-[80%] whitespace-pre-wrap break-words rounded-lg bg-coal-900/70 px-3 py-2 text-right text-xs leading-relaxed text-coal-400">
+                        {item.text}
+                      </p>
+                    </div>
+                  );
+                }
+                if (item.role === 'tools') {
+                  return <ToolCallCard key={i} tools={item.tools} />;
+                }
+                return <Markdown key={i}>{item.text}</Markdown>;
+              })}
             </div>
           )}
         </div>

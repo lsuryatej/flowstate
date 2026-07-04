@@ -123,7 +123,12 @@ function reduce(s: AppState, a: Action): AppState {
     }
     case 'tool_started': {
       const item: ToolItem = { id: ++toolSeq, tool: e.tool, summary: e.summary, status: 'running' };
-      return { ...s, tools: [...s.tools, item], currentTool: item };
+      const tools = [...s.tools, item];
+      const chat = [...s.chat];
+      const last = chat[chat.length - 1];
+      if (last?.role === 'tools') chat[chat.length - 1] = { role: 'tools', tools: [...last.tools, item] };
+      else chat.push({ role: 'tools', tools: [item] });
+      return { ...s, tools, currentTool: item, chat };
     }
     case 'tool_finished': {
       // finish the oldest still-running entry with this tool name
@@ -131,8 +136,14 @@ function reduce(s: AppState, a: Action): AppState {
       if (idx === -1) return s;
       const tools = [...s.tools];
       tools[idx] = { ...tools[idx], status: e.ok ? 'ok' : 'fail' };
-      const currentTool = s.currentTool?.id === tools[idx].id ? null : s.currentTool;
-      return { ...s, tools, currentTool };
+      const finishedId = tools[idx].id;
+      const currentTool = s.currentTool?.id === finishedId ? null : s.currentTool;
+      const chat = s.chat.map((item) =>
+        item.role === 'tools'
+          ? { ...item, tools: item.tools.map((t) => (t.id === finishedId ? { ...tools[idx] } : t)) }
+          : item,
+      );
+      return { ...s, tools, currentTool, chat };
     }
     case 'result': {
       const gained = e.ok ? Math.max(0, e.xpTotal - s.xpTotal) : 0;
