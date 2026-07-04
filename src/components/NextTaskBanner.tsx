@@ -24,7 +24,7 @@ function NextTaskBanner({ task, reason, onAccept, onDismiss }: NextTaskBannerPro
         <button
           type="button"
           onClick={() => onAccept(task)}
-          className="rounded-md border border-ember-500/35 bg-ember-500/10 px-2.5 py-1 text-xs text-ember-400 transition-colors duration-200 ease-[cubic-bezier(0.16,1,0.3,1)] hover:bg-ember-500/20 active:scale-[0.98] focus-visible:outline-2 focus-visible:outline-ember-500/60"
+          className="rounded-md bg-ember-500/15 px-2.5 py-1 text-xs text-ember-300 transition-colors duration-200 ease-[cubic-bezier(0.16,1,0.3,1)] hover:bg-ember-500/25 active:scale-[0.98] focus-visible:outline-2 focus-visible:outline-ember-500/60"
         >
           work on this
         </button>

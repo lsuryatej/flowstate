@@ -23,7 +23,7 @@ function TinySelect({ value, options, onChange, ariaLabel, title }: Props) {
         title={title}
         value={value}
         onChange={(e) => onChange(e.currentTarget.value)}
-        className="cursor-pointer appearance-none rounded-md border border-coal-800 bg-coal-850 py-0.5 pl-2 pr-5 font-mono text-[11px] text-coal-300 outline-none transition-colors duration-200 hover:border-coal-700 focus-visible:border-ember-500/60"
+        className="cursor-pointer appearance-none rounded-md bg-transparent py-1 pl-2 pr-5 font-mono text-[11px] text-coal-400 outline-none transition-colors duration-150 hover:bg-coal-850 hover:text-coal-200 focus-visible:outline-2 focus-visible:outline-ember-500/60"
       >
         {options.map((o) => (
           <option key={o.value} value={o.value} className="bg-coal-850 text-coal-200">

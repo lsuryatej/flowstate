@@ -43,7 +43,7 @@ function EffortPicker({ value, onChange }: Props) {
         aria-label="reasoning effort"
         title="How much the agent thinks before acting"
         onClick={() => setOpen((v) => !v)}
-        className="inline-flex items-center gap-1 rounded-md border border-coal-800 bg-coal-850 py-0.5 pl-2 pr-1.5 font-mono text-[11px] text-coal-300 outline-none transition-colors duration-200 hover:border-coal-700 focus-visible:border-ember-500/60"
+        className="inline-flex items-center gap-1 rounded-md px-2 py-1 font-mono text-[11px] text-coal-400 outline-none transition-colors duration-150 hover:bg-coal-850 hover:text-coal-200 focus-visible:outline-2 focus-visible:outline-ember-500/60"
       >
         {EFFORT_LABELS[value]}
         <svg viewBox="0 0 24 24" width="10" height="10" fill="none" stroke="currentColor" strokeWidth="2" className="text-coal-600">

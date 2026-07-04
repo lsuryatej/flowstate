@@ -173,7 +173,7 @@ function PromptBar({ working, onSend, onInterrupt }: PromptBarProps) {
           <button
             type="button"
             onClick={onInterrupt}
-            className="shrink-0 rounded-md border border-coal-700 px-3 py-2 text-xs text-coal-300 transition-[color,border-color,transform] duration-150 ease-[cubic-bezier(0.16,1,0.3,1)] hover:border-coal-600 hover:text-coal-100 focus-visible:outline-2 focus-visible:outline-ember-500/60 active:scale-[0.98]"
+            className="shrink-0 rounded-md bg-coal-850 px-3 py-2 text-xs text-coal-300 transition-[color,background-color,transform] duration-150 ease-[cubic-bezier(0.16,1,0.3,1)] hover:bg-coal-800 hover:text-coal-100 focus-visible:outline-2 focus-visible:outline-ember-500/60 active:scale-[0.98]"
           >
             interrupt
           </button>
@@ -182,7 +182,7 @@ function PromptBar({ working, onSend, onInterrupt }: PromptBarProps) {
             type="button"
             onClick={submit}
             disabled={!trimmed}
-            className="shrink-0 rounded-md border border-ember-500/35 bg-ember-500/10 px-3 py-2 text-xs text-ember-400 transition-[color,background-color,transform] duration-150 ease-[cubic-bezier(0.16,1,0.3,1)] hover:bg-ember-500/20 focus-visible:outline-2 focus-visible:outline-ember-500/60 active:scale-[0.98] disabled:opacity-40 disabled:hover:bg-ember-500/10"
+            className="shrink-0 rounded-md bg-ember-500/15 px-3 py-2 text-xs text-ember-300 transition-[color,background-color,transform] duration-150 ease-[cubic-bezier(0.16,1,0.3,1)] hover:bg-ember-500/25 focus-visible:outline-2 focus-visible:outline-ember-500/60 active:scale-[0.98] disabled:opacity-40 disabled:hover:bg-ember-500/15"
           >
             send
           </button>
