@@ -4,6 +4,7 @@
 
 import { existsSync } from 'node:fs';
 import { createInterface } from 'node:readline';
+import { listSessions } from '@anthropic-ai/claude-agent-sdk';
 import { AgentSession, resolveCwd } from './agentSession.js';
 import {
   suggestNextTask,
@@ -86,6 +87,19 @@ rl.on('line', (line) => {
     session.newSession();
   } else if (msg.type === 'get_recent_projects') {
     emit({ t: 'recent_projects', items: readRecentProjects() });
+  } else if (msg.type === 'list_sessions') {
+    const dir = resolveCwd(msg.cwd);
+    void listSessions({ dir: dir || undefined, limit: 20 })
+      .then((infos) =>
+        emit({
+          t: 'session_list',
+          items: infos.map((i) => ({ sessionId: i.sessionId, summary: i.summary, lastModified: i.lastModified, firstPrompt: i.firstPrompt })),
+        }),
+      )
+      .catch((err) => log(`list_sessions failed: ${err}`));
+  } else if (msg.type === 'resume_specific') {
+    setActiveProject(msg.cwd);
+    void session.resumeSpecific(msg.sessionId, msg.cwd);
   }
 });
 

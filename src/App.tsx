@@ -30,6 +30,7 @@ import type { FillerMode, ScratchpadEntry } from './types';
 import TinySelect from './components/TinySelect';
 import ModelPicker from './components/ModelPicker';
 import RecentProjects from './components/RecentProjects';
+import SessionBrowser from './components/SessionBrowser';
 import EffortPicker from './components/EffortPicker';
 import PermissionPrompt from './components/PermissionPrompt';
 import PromptBar from './components/PromptBar';
@@ -364,6 +365,36 @@ function App() {
     [sendControl],
   );
 
+  // v3: session browser — parent refreshes the list on open, then picking a
+  // session restarts the sidecar (one sidecar = one session, cannot switch
+  // in-process) before re-syncing config and arming the specific resume.
+  const onOpenSessions = useCallback(() => {
+    void sendControl({ type: 'list_sessions', cwd: localStorage.getItem('fs.cwd') ?? undefined });
+  }, [sendControl]);
+
+  const onPickSession = useCallback(
+    (sessionId: string) => {
+      const dir = localStorage.getItem('fs.cwd') ?? undefined;
+      void (async () => {
+        await invoke('restart_session'); // fresh sidecar: one sidecar = one session
+        // give the fresh sidecar a beat to boot before control messages
+        await new Promise((r) => setTimeout(r, 500));
+        // re-sync config the boot effect normally sends
+        void sendControl({ type: 'set_model', model: localStorage.getItem('fs.model') ?? DEFAULT_MODEL });
+        void sendControl({
+          type: 'set_permission_mode',
+          mode: (localStorage.getItem('fs.permMode') as PermissionMode) ?? DEFAULT_PERMISSION_MODE,
+        });
+        void sendControl({
+          type: 'set_effort',
+          level: (localStorage.getItem('fs.effort') as EffortLevel) ?? DEFAULT_EFFORT,
+        });
+        void sendControl({ type: 'resume_specific', sessionId, cwd: dir });
+      })();
+    },
+    [sendControl],
+  );
+
   // v2: native folder picker -> set + validate the repo path.
   const pickFolder = useCallback(async () => {
     const picked = await open({ directory: true, multiple: false, title: 'Choose repo folder' });
@@ -465,6 +496,12 @@ function App() {
             </svg>
           </button>
           <RecentProjects items={state.recentProjects} onPick={onPickProject} />
+          <SessionBrowser
+            items={state.sessionList}
+            activeSessionId={state.sessionId}
+            onOpen={onOpenSessions}
+            onPick={onPickSession}
+          />
         </span>
 
         <span className="flex-1" />

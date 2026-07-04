@@ -283,18 +283,34 @@ export class AgentSession {
     if (!pointer || pointer.cwd !== dir) return; // nothing to resume for this repo
     this.pendingResumeId = pointer.sessionId;
     this.resolvedCwd = dir;
+    await this.backfillAndArm(pointer.sessionId, dir);
+  }
+
+  /** Arm resume of a SPECIFIC chosen session + backfill its transcript. */
+  async resumeSpecific(sessionId: string, cwd?: string): Promise<void> {
+    const dir = resolveCwd(cwd) ?? '';
+    this.pendingResumeId = sessionId;
+    this.resolvedCwd = dir;
+    if (this.q) this.log('resumeSpecific while a session is live — arm will apply after restart');
+    await this.backfillAndArm(sessionId, dir);
+  }
+
+  /** Shared backfill body for resume()/resumeSpecific(): read the transcript,
+   * emit it as history, then emit resumed regardless of read success (the
+   * pendingResumeId is armed either way). */
+  private async backfillAndArm(sessionId: string, dir: string): Promise<void> {
     try {
-      const msgs = await getSessionMessages(pointer.sessionId, { dir: dir || undefined, limit: 40 });
+      const msgs = await getSessionMessages(sessionId, { dir: dir || undefined, limit: 40 });
       const items = msgs
         .filter((m) => m.type === 'user' || m.type === 'assistant')
         .map((m) => ({ role: m.type as 'user' | 'assistant', text: extractText(m) }))
         .filter((i) => i.text.trim().length > 0);
       this.emit({ t: 'history', items });
-      this.emit({ t: 'resumed', sessionId: pointer.sessionId });
+      this.emit({ t: 'resumed', sessionId });
     } catch (err) {
       this.log(`resume backfill failed: ${err}`);
       // still armed to resume even if backfill read failed
-      this.emit({ t: 'resumed', sessionId: pointer.sessionId });
+      this.emit({ t: 'resumed', sessionId });
     }
   }
 
