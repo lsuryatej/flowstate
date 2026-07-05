@@ -4,6 +4,7 @@
 // turns, and must not disturb the long-lived session or the dead-zone HUD.
 
 import { query } from '@anthropic-ai/claude-agent-sdk';
+import { getSharedQueryOptions } from './queryOptions';
 
 const UTILITY_MODEL = 'claude-haiku-4-5-20251001'; // testing-phase pin, same as agentSession.ts
 
@@ -21,10 +22,7 @@ export async function utilityQuery(prompt: string): Promise<string> {
         model: UTILITY_MODEL,
         maxTurns: 1,
         tools: [],
-        // Packaging: same as agentSession.ts — in a bundled .app the SDK can't
-        // require.resolve() its native binary from node_modules, so the Rust
-        // host hands us the bundled path via env. Unset in dev.
-        pathToClaudeCodeExecutable: process.env.FLOWSTATE_CLAUDE_BIN || undefined,
+        ...getSharedQueryOptions(),
       },
     });
     for await (const msg of q) {
