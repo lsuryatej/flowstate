@@ -19,6 +19,8 @@
     "build:sidecar": "esbuild sidecar/index.ts --bundle --platform=node --format=esm --outfile=sidecar/dist/index.js --external:@anthropic-ai/claude-agent-sdk",
     "build": "tsc && vite build",
     "preview": "vite preview",
+    "lint": "eslint .",
+    "format": "prettier --write .",
     "tauri": "tauri"
   },
   "dependencies": {
