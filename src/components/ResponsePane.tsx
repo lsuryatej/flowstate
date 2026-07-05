@@ -3,10 +3,11 @@
 // on new content and plays the one-time ember "arrival" bloom when a turn's
 // answer lands (the focus-snap target, IDEOLOGY law 3).
 
-import { useEffect, useRef } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import type { ResponsePaneProps } from '../types';
 import Markdown from './Markdown';
 import ToolCallCard from './ToolCallCard';
+import ThinkingBlock from './ThinkingBlock';
 
 /** Flatten markdown to one clean line for the compact result status. */
 function stripMarkdown(s: string): string {
@@ -63,6 +64,17 @@ function FirstRun() {
 
 function ResponsePane({ chat, arriving, lastResult, error }: ResponsePaneProps) {
   const scrollRef = useRef<HTMLDivElement>(null);
+  // The result summary is a recap, not the answer — the user often wants it
+  // out of the way. Collapse is a preference: once folded it stays folded
+  // across turns (persisted), so the reading column stays clean by default.
+  const [resultCollapsed, setResultCollapsed] = useState(() => localStorage.getItem('fs.resultCollapsed') === 'yes');
+  const toggleResult = () => {
+    setResultCollapsed((v) => {
+      const next = !v;
+      localStorage.setItem('fs.resultCollapsed', next ? 'yes' : 'no');
+      return next;
+    });
+  };
 
   useEffect(() => {
     const el = scrollRef.current;
@@ -91,6 +103,19 @@ function ResponsePane({ chat, arriving, lastResult, error }: ResponsePaneProps) 
                 if (item.role === 'tools') {
                   return <ToolCallCard key={i} tools={item.tools} />;
                 }
+                if (item.role === 'thinking') {
+                  return <ThinkingBlock key={i} text={item.text} done={item.done} />;
+                }
+                if (item.role === 'command_output') {
+                  return (
+                    <pre
+                      key={i}
+                      className="whitespace-pre-wrap rounded-md bg-coal-900/50 px-3 py-2 font-mono text-[11px] leading-relaxed text-coal-500"
+                    >
+                      {item.text}
+                    </pre>
+                  );
+                }
                 return <Markdown key={i}>{item.text}</Markdown>;
               })}
             </div>
@@ -104,12 +129,37 @@ function ResponsePane({ chat, arriving, lastResult, error }: ResponsePaneProps) 
 
       {lastResult && (
         <div className="fs-hairline-t px-4 py-2">
-          <p className={`mx-auto line-clamp-3 max-w-[68ch] break-words [overflow-wrap:anywhere] text-xs ${lastResult.ok ? 'text-coal-300' : 'text-coal-500'}`}>
-            <span className={`mr-2 font-mono text-[10px] uppercase tracking-[0.14em] ${lastResult.ok ? 'text-ember-400' : 'text-coal-500'}`}>
+          <div className="mx-auto flex max-w-[68ch] items-start gap-2">
+            <button
+              type="button"
+              onClick={toggleResult}
+              aria-expanded={!resultCollapsed}
+              title={resultCollapsed ? 'Show the result recap' : 'Hide the result recap'}
+              className={`mt-px flex shrink-0 items-center gap-1 font-mono text-[10px] uppercase tracking-[0.14em] transition-colors duration-200 ${lastResult.ok ? 'text-ember-400 hover:text-ember-300' : 'text-coal-500 hover:text-coal-300'}`}
+            >
+              <svg
+                width="9"
+                height="9"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2.5"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                className={`shrink-0 transition-transform duration-200 ${resultCollapsed ? '' : 'rotate-90'}`}
+              >
+                <path d="M9 18l6-6-6-6" />
+              </svg>
               {lastResult.ok ? 'done' : 'ended'}
-            </span>
-            {stripMarkdown(lastResult.summary)}
-          </p>
+            </button>
+            {!resultCollapsed && (
+              <p
+                className={`line-clamp-3 break-words [overflow-wrap:anywhere] text-xs ${lastResult.ok ? 'text-coal-300' : 'text-coal-500'}`}
+              >
+                {stripMarkdown(lastResult.summary)}
+              </p>
+            )}
+          </div>
         </div>
       )}
     </div>

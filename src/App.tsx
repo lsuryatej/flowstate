@@ -35,6 +35,11 @@ import EffortPicker from './components/EffortPicker';
 import PermissionPrompt from './components/PermissionPrompt';
 import PromptBar from './components/PromptBar';
 import ResponsePane from './components/ResponsePane';
+import AgentTodos from './components/AgentTodos';
+import ContextMeter from './components/ContextMeter';
+import PlanApprovalCard from './components/PlanApprovalCard';
+import RewindMenu from './components/RewindMenu';
+import MemoryPanel from './components/MemoryPanel';
 import ToolHUD from './components/ToolHUD';
 import Scratchpad from './components/Scratchpad';
 import DeadZone from './components/DeadZone';
@@ -347,9 +352,50 @@ function App() {
   // v2: answer a canUseTool round-trip.
   const onAllow = useCallback((id: string) => void sendControl({ type: 'permission_response', id, decision: 'allow' }), [sendControl]);
   const onDeny = useCallback((id: string) => void sendControl({ type: 'permission_response', id, decision: 'deny' }), [sendControl]);
+  // v4: allow + persist the rule to the repo's .claude settings — asked once, never again.
+  const onAllowAlways = useCallback(
+    (id: string) => void sendControl({ type: 'permission_response', id, decision: 'allow_always' }),
+    [sendControl],
+  );
 
   // v3: user chose a clean slate over the resumed session.
   const onNewSession = useCallback(() => void sendControl({ type: 'new_session' }), [sendControl]);
+
+  // v4: @-mention lookups from the prompt bar (debounced bar-side).
+  const onQueryFiles = useCallback(
+    (query: string) => void sendControl({ type: 'list_files', cwd: cwd.trim() || undefined, query }),
+    [cwd, sendControl],
+  );
+
+  // v4: plan approval — approving the plan IS the mode switch: the agent
+  // leaves plan mode and starts building with edits auto-accepted. The picker
+  // reflects it (visible, never silent). Keep planning = deny; the agent stays
+  // in plan mode and the user says what to change.
+  const onApprovePlan = useCallback(
+    (id: string) => {
+      void sendControl({ type: 'permission_response', id, decision: 'allow' });
+      changeMode('acceptEdits');
+    },
+    [sendControl, changeMode],
+  );
+  const onKeepPlanning = useCallback(
+    (id: string) => void sendControl({ type: 'permission_response', id, decision: 'deny' }),
+    [sendControl],
+  );
+
+  // v4: rewind to a checkpoint (files + conversation; nothing is deleted).
+  const onRewind = useCallback((id: string) => void sendControl({ type: 'rewind', id }), [sendControl]);
+
+  // v4: CLAUDE.md memory panel.
+  const onLoadMemory = useCallback(
+    () => void sendControl({ type: 'get_memory', cwd: cwd.trim() || undefined }),
+    [cwd, sendControl],
+  );
+  const onSaveMemory = useCallback(
+    (scope: 'project' | 'global', content: string) =>
+      void sendControl({ type: 'save_memory', cwd: cwd.trim() || undefined, scope, content }),
+    [cwd, sendControl],
+  );
 
   // v3: switch to a recently-used project — mirrors what happens when the
   // user sets a repo path and reboots the per-repo context.
@@ -361,6 +407,7 @@ function App() {
       void sendControl({ type: 'resume_session', cwd: dir });
       void sendControl({ type: 'get_recovery' });
       void sendControl({ type: 'suggest_next_task', cwd: dir });
+      void sendControl({ type: 'get_memory', cwd: dir }); // v4: refresh CLAUDE.md for the new repo
     },
     [sendControl],
   );
@@ -676,12 +723,29 @@ function App() {
                   <span className="fs-pulse-dot inline-block h-1 w-1 rounded-full bg-ember-500" />
                   {state.currentTool ? state.currentTool.tool.toLowerCase() : 'thinking'}
                   <span className="tabular-nums text-ember-400">{elapsed}</span>
+                  {/* v4: a settings.json hook is running — real activity, named */}
+                  {state.hookActivity && <span className="text-coal-600">hook: {state.hookActivity}</span>}
                 </span>
               ) : (
                 <span className="text-coal-600">idle</span>
               )}
-              <span className="text-coal-600">{repoName}</span>
+              <span className="flex items-center gap-3">
+                {/* v4: context meter + rewind live where the eye already rests */}
+                <ContextMeter usage={state.contextUsage} compactNote={state.compactNote} />
+                <RewindMenu checkpoints={state.checkpoints} rewindResult={state.rewindResult} onRewind={onRewind} />
+                <span className="text-coal-600">{repoName}</span>
+              </span>
             </div>
+
+            {/* v4: the agent finished planning and asks to build — the plan is
+                the decision surface, right where the eye already is. */}
+            {state.planReady && (
+              <PlanApprovalCard
+                plan={state.planReady.plan}
+                onApprove={() => onApprovePlan(state.planReady!.id)}
+                onKeepPlanning={() => onKeepPlanning(state.planReady!.id)}
+              />
+            )}
 
             {/* v2: the agent is parked in canUseTool — answer before the turn
                 can continue. Only the oldest pending ask is shown. */}
@@ -690,11 +754,19 @@ function App() {
                 ask={state.permissionAsks[0]}
                 pending={state.permissionAsks.length}
                 onAllow={onAllow}
+                onAllowAlways={onAllowAlways}
                 onDeny={onDeny}
               />
             )}
 
-            <PromptBar working={working} onSend={onSend} onInterrupt={() => void interrupt()} />
+            <PromptBar
+              working={working}
+              onSend={onSend}
+              onInterrupt={() => void interrupt()}
+              commands={state.commands}
+              fileList={state.fileList}
+              onQueryFiles={onQueryFiles}
+            />
           </div>
         </section>
 
@@ -779,6 +851,14 @@ function App() {
             </p>
           )}
 
+          {/* v4: the agent's own todo list (TodoWrite) — what IT is doing,
+              distinct from the user's decomposed plan below. */}
+          {state.todos.length > 0 && (
+            <div className="fs-hairline-t">
+              <AgentTodos items={state.todos} />
+            </div>
+          )}
+
           {/* v1.2: the decomposed checklist */}
           {state.plan && (
             <div className="fs-hairline-t">
@@ -798,6 +878,12 @@ function App() {
               />
             </div>
           )}
+
+          {/* v4: CLAUDE.md memory — one quiet collapsed row; expand to edit
+              what the agent reads at every session start. */}
+          <div className="fs-hairline-t">
+            <MemoryPanel memory={state.memory} onLoad={onLoadMemory} onSave={onSaveMemory} />
+          </div>
 
           <span className="flex-1" />
 

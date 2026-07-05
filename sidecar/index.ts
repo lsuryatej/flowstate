@@ -16,6 +16,7 @@ import {
   trackPosition,
   trackPrompt,
 } from './exec.js';
+import { listFiles, readMemory, saveMemory } from './workspace.js';
 import { setActiveProject, readRecentProjects } from './store.js';
 import type { ControlMsg, UiEvent } from '../shared/uiEvents.js';
 
@@ -102,6 +103,16 @@ rl.on('line', (line) => {
   } else if (msg.type === 'resume_specific') {
     setActiveProject(msg.cwd);
     void session.resumeSpecific(msg.sessionId, msg.cwd);
+  } else if (msg.type === 'list_files') {
+    void listFiles(msg.cwd, msg.query, emit);
+  } else if (msg.type === 'get_memory') {
+    readMemory(msg.cwd, emit);
+  } else if (msg.type === 'save_memory') {
+    log(`save ${msg.scope} memory (${msg.content.length} chars)`);
+    saveMemory(msg.cwd, msg.scope, msg.content, emit);
+  } else if (msg.type === 'rewind') {
+    log(`rewind to ${msg.id}`);
+    void session.rewind(msg.id);
   }
 });
 

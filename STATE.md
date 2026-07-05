@@ -7,11 +7,48 @@
 > loses the exact position in the build. Keep it short: current facts, not narrative.
 
 ## Current phase
-v1 — executive-function layer. v0 PASSED the live test 2026-07-02 (real API
-key via keychain, real prompt, wait filled, snap back, completion hit; Surya
-green-lit v1).
+v4 — terminal parity layer, CODE-COMPLETE (2026-07-05), awaiting live
+verification. (v1 also still awaits its live pass; v0 PASSED live 2026-07-02.)
 
 ## Last completed item
+v4 terminal-parity build (2026-07-05): 12 features closing the gap with
+Claude Code CLI, picked by Surya (tier A 1-7 + tier B 9,10,12,13,14):
+- Slash commands: supportedCommands()/commands_changed -> `commands` event;
+  PromptBar popover menu (local /plan entry first); local_command_output
+  renders as a chat block. Custom .claude/commands load via settingSources.
+- @-file mentions: PromptBar popover; sidecar/workspace.ts list_files (git
+  ls-files, walk fallback, fuzzy rank).
+- Agent TodoWrite -> `todos` snapshot -> AgentTodos rail section (distinct
+  from the user's decomposed plan).
+- Extended thinking: thinking_delta -> `assistant_thinking`; ThinkingBlock
+  chat role (live tail while thinking = honest dead-zone filler; collapses
+  to "· thought" when the answer starts / turn ends).
+- Context: getContextUsage() polled at each result -> ContextMeter in the
+  statusline (ember >=80%); compact_boundary -> quiet "context tidied" note.
+  Auto-compact is SDK-default; manual = type /compact.
+- Plan approval: ExitPlanMode via canUseTool -> `plan_ready` ->
+  PlanApprovalCard (approve = allow + changeMode('acceptEdits'); keep
+  planning = deny).
+- Hooks: settingSources ['user','project','local'] (read-only respect);
+  hook_started/response -> "hook: <name>" in the statusline.
+- Always-allow: canUseTool suggestions kept in pending map; PermissionPrompt
+  "always" button -> allow_always -> updatedPermissions.
+- CLAUDE.md memory: workspace.ts get/save_memory -> MemoryPanel (collapsed
+  rail row, lazy load, dirty-tracked draft).
+- Rewind: enableFileCheckpointing + per-prompt checkpoints (user-msg uuid +
+  prev assistant uuid tracked in Normalizer) -> RewindMenu in statusline;
+  rewind = rewindFiles + close query + re-arm resume w/ resumeSessionAt +
+  backfillUpTo trims history. Generation counter silences the old pump.
+- WebSearch/WebFetch: nothing to enable — they flow through the existing
+  permission UI.
+UI grunt work was 3 parallel Sonnet subagents (PromptBar; ThinkingBlock/
+AgentTodos/ContextMeter/ResponsePane; PermissionPrompt/PlanApprovalCard/
+RewindMenu/MemoryPanel); contract+sidecar spine and App.tsx wiring first-hand.
+Verified: tsc clean, vite build, cargo check, sidecar bundle, non-LLM
+handlers smoke-tested by piping frames (list_files/get_memory/save_memory/
+rewind guard all good), banned-palette grep clean on all touched components.
+
+## Prior completed item
 v1.1–v1.4 CODE-COMPLETE (2026-07-03): next-task engine, decomposer, parking
 lot, recovery card. New files: sidecar/utility.ts (one-shot no-tools Haiku
 query + JSON extraction), sidecar/exec.ts (all four features; LLM only in
@@ -23,7 +60,7 @@ smoke-tested by piping frames into the built sidecar; typecheck + cargo check
 + sidecar bundle all green.
 
 ## In progress
-Nothing. v1 + the UI revamp await live in-app verification.
+Nothing. v1 + the UI revamp + v4 await live in-app verification.
 
 ## UI system ("hearth", 2026-07-03)
 Full visual revamp. Tokens live in src/index.css `@theme`: warm graphite
@@ -39,16 +76,36 @@ RecoveryCard is the app's ONLY elevated card (fs-raised + fs-settle-in).
 PRODUCT.md (register: product) added for the impeccable design skill.
 
 ## Next item (in build order)
-Live v1 verification in `bun run tauri dev`: (a) boot with repo-path set →
-next-task banner appears (Haiku reads that repo's STATE.md); (b) `/plan <goal>`
-in the prompt bar → checklist; check items → +1 XP + chime each; (c) ⌘J →
-park a thought → parking-lot.md in the app data dir; (d) relaunch after >10min
-→ recovery card. Then STOP for green light before v2.
+Live v1 verification in `bun run tauri dev` (unchanged: next-task banner,
+/plan checklist, ⌘J park, recovery card) PLUS live v4 verification:
+(a) type `/` → command menu (with /plan first), pick /cost → output block in
+chat; (b) type `@norm` → file menu → insert; (c) prompt on Opus → thinking
+streams live, collapses to "· thought"; (d) agent uses TodoWrite → "agent's
+plan" rail section; (e) statusline shows context %, /compact → "context
+tidied"; (f) Plan mode → agent plans → PlanApprovalCard → approve flips to
+acceptEdits; (g) Ask mode tool call → "always" button → .claude/settings
+gains the rule, re-run doesn't ask; (h) send 2 prompts, rewind to the first
+→ files restored + chat trimmed; (i) memory row → edit CLAUDE.md → save.
+Then STOP for green light.
 
 ## Known blockers
 - None. (Auth resolved 2026-07-02: key pasted in-app → keychain.)
 
 ## Decisions made this build (not yet promoted to a formal doc)
+- v4 (2026-07-05, Surya's calls): rewind = conversation + files (full
+  checkpoint); hooks = respect-only, no editor UI; compaction = auto +
+  quiet notify (SDK default auto-compact, no threshold UI); verification
+  bar = typecheck + smoke, live pass is Surya's.
+- settingSources is now ['user','project','local'] (was SDK-default off).
+  Side effects to expect on first live run: target repos' CLAUDE.md files
+  now load into context; user-level hooks fire; saved permission rules
+  apply. This is intentional (features #2/#9/#10/#12 depend on it).
+- Approving a plan flips permission mode to acceptEdits via the normal
+  changeMode path (persists the pref, visible in the picker) — a silent
+  session-only switch would desync the picker from reality.
+- Checkpoint anchors: rewindFiles wants the USER message uuid; the
+  conversation fork wants the preceding ASSISTANT uuid (resumeSessionAt).
+  Normalizer tracks both per prompt; convAnchor=null for the first prompt.
 - Model pinned to claude-haiku-4-5-20251001 in BOTH agentSession.ts and
   utility.ts for the whole testing phase (Surya's call, cost). Don't unpin
   without asking.

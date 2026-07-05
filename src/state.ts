@@ -7,10 +7,14 @@ import {
   DEFAULT_EFFORT,
   DEFAULT_MODEL,
   DEFAULT_PERMISSION_MODE,
+  type Checkpoint,
+  type CommandInfo,
   type EffortLevel,
+  type MemoryScope,
   type ParkedItem,
   type PermissionMode,
   type PlanItem,
+  type TodoItem,
   type UiEvent,
 } from '../shared/uiEvents';
 import type { ChatItem, ToolItem } from './types';
@@ -21,6 +25,7 @@ export interface PermissionAsk {
   id: string;
   tool: string;
   summary: string;
+  canPersist?: boolean; // v4: the SDK offered an "always allow" rule for this
 }
 
 export interface AppState {
@@ -53,6 +58,17 @@ export interface AppState {
   auth: { method: 'subscription' | 'api_key' | 'none'; email?: string; plan?: string } | null;
   recentProjects: { cwd: string; lastPrompt: string; lastSeen: number }[];
   sessionList: { sessionId: string; summary: string; lastModified: number; firstPrompt?: string }[];
+  // ---- v4 (terminal parity) ----
+  commands: CommandInfo[]; // slash-command menu source
+  fileList: { query: string; items: string[] } | null; // @-mention autocomplete answers
+  todos: TodoItem[]; // the agent's own TodoWrite list
+  contextUsage: { usedTokens: number; maxTokens: number; percentage: number } | null;
+  compactNote: { trigger: 'manual' | 'auto'; preTokens: number; postTokens?: number } | null; // quiet "context tidied" note, cleared on next prompt
+  planReady: { id: string; plan: string } | null; // ExitPlanMode approval card
+  hookActivity: string | null; // name of the currently-running settings.json hook, null when quiet
+  memory: { project: MemoryScope; global: MemoryScope } | null; // both CLAUDE.md scopes the agent loads
+  checkpoints: Checkpoint[]; // rewindable anchors, oldest first
+  rewindResult: { ok: boolean; filesChanged: number; error?: string } | null; // last rewind outcome, cleared on next prompt
 }
 
 const initial: AppState = {
@@ -82,6 +98,16 @@ const initial: AppState = {
   auth: null,
   recentProjects: [],
   sessionList: [],
+  commands: [],
+  fileList: null,
+  todos: [],
+  contextUsage: null,
+  compactNote: null,
+  planReady: null,
+  hookActivity: null,
+  memory: null,
+  checkpoints: [],
+  rewindResult: null,
 };
 
 type Action =
@@ -102,6 +128,8 @@ function reduce(s: AppState, a: Action): AppState {
       needsInput: null,
       nextTask: null, // the user is moving; the suggestion did its job
       resumed: false, // sending a prompt dismisses the resumed chip
+      compactNote: null, // v4: transient notes clear when the user moves on
+      rewindResult: null,
     };
   }
   if (a.kind === 'dismiss_next') return { ...s, nextTask: null };
@@ -112,17 +140,35 @@ function reduce(s: AppState, a: Action): AppState {
       return { ...s, sessionId: e.sessionId };
     case 'agent_working':
       return { ...s, mode: 'working', turnStartedAt: Date.now(), tools: [], currentTool: null, needsInput: null };
-    case 'agent_idle':
-      return { ...s, mode: 'idle', turnStartedAt: null, currentTool: null, needsInput: null };
+    case 'agent_idle': {
+      // v4: turn over — collapse any still-open thinking block.
+      const chat = s.chat.map((c) => (c.role === 'thinking' && !c.done ? { ...c, done: true } : c));
+      return { ...s, mode: 'idle', turnStartedAt: null, currentTool: null, needsInput: null, chat };
+    }
     case 'agent_needs_input':
       return { ...s, needsInput: e.reason };
     case 'assistant_text': {
       const chat = [...s.chat];
+      // v4: answer text arriving marks any open thinking block as done.
+      const ti = chat.length - 1;
+      if (chat[ti]?.role === 'thinking' && !(chat[ti] as { done: boolean }).done)
+        chat[ti] = { ...(chat[ti] as { role: 'thinking'; text: string; done: boolean }), done: true };
       const last = chat[chat.length - 1];
       if (last?.role === 'assistant') chat[chat.length - 1] = { ...last, text: last.text + e.delta };
       else chat.push({ role: 'assistant', text: e.delta });
       return { ...s, chat };
     }
+    case 'assistant_thinking': {
+      // v4: stream thinking into its own chat block (live while thinking,
+      // collapsed once the answer starts). Fills the dead zone honestly.
+      const chat = [...s.chat];
+      const last = chat[chat.length - 1];
+      if (last?.role === 'thinking' && !last.done) chat[chat.length - 1] = { ...last, text: last.text + e.delta };
+      else chat.push({ role: 'thinking', text: e.delta, done: false });
+      return { ...s, chat };
+    }
+    case 'command_output':
+      return { ...s, chat: [...s.chat, { role: 'command_output', text: e.text }] };
     case 'tool_started': {
       const item: ToolItem = { id: ++toolSeq, tool: e.tool, summary: e.summary, status: 'running' };
       const tools = [...s.tools, item];
@@ -185,9 +231,16 @@ function reduce(s: AppState, a: Action): AppState {
       return { ...s, recovery: { where: e.where, next: e.next, blocked: e.blocked } };
     // ---- v2 ----
     case 'permission_request':
-      return { ...s, permissionAsks: [...s.permissionAsks, { id: e.id, tool: e.tool, summary: e.summary }] };
+      return {
+        ...s,
+        permissionAsks: [...s.permissionAsks, { id: e.id, tool: e.tool, summary: e.summary, canPersist: e.canPersist }],
+      };
     case 'permission_resolved':
-      return { ...s, permissionAsks: s.permissionAsks.filter((p) => p.id !== e.id) };
+      return {
+        ...s,
+        permissionAsks: s.permissionAsks.filter((p) => p.id !== e.id),
+        planReady: s.planReady?.id === e.id ? null : s.planReady, // plan card settles through the same channel
+      };
     case 'session_config':
       return { ...s, model: e.model, permissionMode: e.permissionMode, effort: e.effort };
     case 'cwd_status':
@@ -203,6 +256,27 @@ function reduce(s: AppState, a: Action): AppState {
       return { ...s, recentProjects: e.items };
     case 'session_list':
       return { ...s, sessionList: e.items };
+    // ---- v4 ----
+    case 'commands':
+      return { ...s, commands: e.items };
+    case 'file_list':
+      return { ...s, fileList: { query: e.query, items: e.items } };
+    case 'todos':
+      return { ...s, todos: e.items };
+    case 'context_usage':
+      return { ...s, contextUsage: { usedTokens: e.usedTokens, maxTokens: e.maxTokens, percentage: e.percentage } };
+    case 'compacted':
+      return { ...s, compactNote: { trigger: e.trigger, preTokens: e.preTokens, postTokens: e.postTokens } };
+    case 'plan_ready':
+      return { ...s, planReady: { id: e.id, plan: e.plan } };
+    case 'hook_activity':
+      return { ...s, hookActivity: e.status === 'started' ? e.name : null };
+    case 'memory':
+      return { ...s, memory: { project: e.project, global: e.global } };
+    case 'checkpoint':
+      return { ...s, checkpoints: e.items };
+    case 'rewind_done':
+      return { ...s, rewindResult: { ok: e.ok, filesChanged: e.filesChanged, error: e.error } };
     default:
       return s;
   }

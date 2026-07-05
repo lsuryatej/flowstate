@@ -13,6 +13,7 @@ import { homedir } from 'node:os';
 import { basename, extname, resolve } from 'node:path';
 import { query, getSessionMessages } from '@anthropic-ai/claude-agent-sdk';
 import type {
+  PermissionUpdate,
   Query,
   SDKUserMessage,
   SessionMessage,
@@ -117,7 +118,9 @@ export class AgentSession {
   private effort: EffortLevel = DEFAULT_EFFORT;
 
   // v2: pending canUseTool requests, keyed by the id we hand the webview.
-  private pending = new Map<string, (r: PermissionResult) => void>();
+  // v4: each carries the SDK's always-allow suggestions so allow_always can
+  // return them as updatedPermissions.
+  private pending = new Map<string, { settle: (r: PermissionResult) => void; suggestions?: PermissionUpdate[] }>();
   private nextReqId = 0;
 
   // v3: session continuity. pendingResumeId is armed by resume() (boot) and
@@ -126,6 +129,14 @@ export class AgentSession {
   // session_started to the right pointer.
   private pendingResumeId: string | null = null;
   private resolvedCwd = '';
+
+  // v4: rewind support. currentSessionId lets rewind re-arm resume of the same
+  // session; pendingResumeAt is the conversation anchor for resumeSessionAt;
+  // generation silences a closed pump's "session ended" error after a
+  // deliberate restart (rewind).
+  private currentSessionId: string | null = null;
+  private pendingResumeAt: string | null = null;
+  private generation = 0;
 
   constructor(
     private emit: (e: UiEvent) => void,
@@ -199,25 +210,29 @@ export class AgentSession {
     this.emit({ t: 'session_config', model: this.model, permissionMode: this.permissionMode, effort: this.effort });
   }
 
-  /** v2: the webview's answer to a permission_request. */
-  resolvePermission(id: string, decision: 'allow' | 'deny'): void {
-    const settle = this.pending.get(id);
-    if (!settle) {
+  /** v2: the webview's answer to a permission_request. v4: allow_always also
+   * persists the SDK's suggested rules (they land in .claude/settings.local.json
+   * or session scope, per the suggestion's own destination). */
+  resolvePermission(id: string, decision: 'allow' | 'allow_always' | 'deny'): void {
+    const req = this.pending.get(id);
+    if (!req) {
       this.log(`permission_response for unknown id ${id}, ignoring`);
       return;
     }
     this.pending.delete(id);
-    settle(
-      decision === 'allow'
-        ? { behavior: 'allow', updatedInput: undefined }
-        : { behavior: 'deny', message: 'denied by user' },
-    );
+    if (decision === 'deny') {
+      req.settle({ behavior: 'deny', message: 'denied by user' });
+    } else if (decision === 'allow_always' && req.suggestions?.length) {
+      req.settle({ behavior: 'allow', updatedInput: undefined, updatedPermissions: req.suggestions });
+    } else {
+      req.settle({ behavior: 'allow', updatedInput: undefined });
+    }
     this.emit({ t: 'permission_resolved', id });
   }
 
   private denyAllPending(reason: string): void {
-    for (const [id, settle] of this.pending) {
-      settle({ behavior: 'deny', message: reason });
+    for (const [id, req] of this.pending) {
+      req.settle({ behavior: 'deny', message: reason });
       this.emit({ t: 'permission_resolved', id });
     }
     this.pending.clear();
@@ -241,25 +256,44 @@ export class AgentSession {
       options: {
         cwd: dir,
         resume: this.pendingResumeId ?? undefined,
+        // v4: rewind — fork the conversation from a specific assistant message.
+        resumeSessionAt: this.pendingResumeAt ?? undefined,
         includePartialMessages: true, // required for assistant_text streaming
         model: this.model,
         permissionMode: toSdkMode(this.permissionMode),
         effort: this.effort,
+        // v4: respect the repo's + user's .claude settings — hooks, CLAUDE.md
+        // memory, custom slash commands, and saved permission rules all flow
+        // from here. This is what makes allow_always stick across sessions.
+        settingSources: ['user', 'project', 'local'],
+        // v4: per-turn file snapshots so rewindFiles() can restore the repo.
+        enableFileCheckpointing: true,
         // Required by the SDK to honor the `bypass` mode at all; the interactive
         // modes (default/acceptEdits/plan) still gate through canUseTool below.
         allowDangerouslySkipPermissions: true,
-        canUseTool: (toolName, toolInput) => this.requestPermission(toolName, toolInput),
+        canUseTool: (toolName, toolInput, opts) => this.requestPermission(toolName, toolInput, opts?.suggestions),
       },
     });
     this.pendingResumeId = null;
+    this.pendingResumeAt = null;
     void this.pump();
   }
 
-  /** canUseTool: park the turn until the webview answers (or interrupt denies). */
-  private requestPermission(tool: string, input: Record<string, unknown>): Promise<PermissionResult> {
+  /** canUseTool: park the turn until the webview answers (or interrupt denies).
+   * v4: ExitPlanMode gets its own event — it's a plan approval, not a tool ask. */
+  private requestPermission(
+    tool: string,
+    input: Record<string, unknown>,
+    suggestions?: PermissionUpdate[],
+  ): Promise<PermissionResult> {
     const id = `perm-${++this.nextReqId}`;
-    this.emit({ t: 'permission_request', id, tool, summary: summarize(tool, input) });
-    return new Promise<PermissionResult>((settle) => this.pending.set(id, settle));
+    if (tool === 'ExitPlanMode') {
+      const plan = typeof input.plan === 'string' ? input.plan : '';
+      this.emit({ t: 'plan_ready', id, plan });
+    } else {
+      this.emit({ t: 'permission_request', id, tool, summary: summarize(tool, input), canPersist: !!suggestions?.length });
+    }
+    return new Promise<PermissionResult>((settle) => this.pending.set(id, { settle, suggestions }));
   }
 
   private async *input(): AsyncGenerator<SDKUserMessage> {
@@ -276,19 +310,124 @@ export class AgentSession {
   }
 
   private async pump(): Promise<void> {
+    const gen = ++this.generation;
     try {
       for await (const msg of this.q!) {
+        if (gen !== this.generation) return; // superseded by a rewind restart
         for (const e of this.normalizer.normalize(msg)) {
           if (e.t === 'session_started') {
+            this.currentSessionId = e.sessionId;
             writeSessionPointer(e.sessionId, this.resolvedCwd);
             void this.emitAuthStatus();
+            void this.emitCommands(); // v4: slash-command menu snapshot
           }
           this.emit(e);
+          // v4: refresh the context meter when a turn lands.
+          if (e.t === 'result') void this.emitContextUsage();
         }
       }
+      if (gen !== this.generation) return; // closed deliberately (rewind)
       this.emit({ t: 'error', message: 'agent session ended; restart the app for a new session' });
     } catch (err) {
+      if (gen !== this.generation) return;
       this.emit({ t: 'error', message: `agent session crashed: ${err}` });
+    }
+  }
+
+  /** v4: the session's slash commands. initializationResult().commands is the
+   * FULL list (built-ins like /compact, /cost, /clear + .claude/commands/* +
+   * skills); supportedCommands() is skills-only, which is why the menu looked
+   * empty. Fall back to supportedCommands if the init result is unavailable. */
+  private async emitCommands(): Promise<void> {
+    if (!this.q) return;
+    try {
+      const init = await this.q.initializationResult();
+      const cmds = init.commands ?? [];
+      this.emit({
+        t: 'commands',
+        items: cmds.map((c) => ({ name: c.name, description: c.description, argumentHint: c.argumentHint })),
+      });
+    } catch (err) {
+      this.log(`initializationResult failed, falling back to supportedCommands: ${err}`);
+      try {
+        const cmds = await this.q.supportedCommands();
+        this.emit({
+          t: 'commands',
+          items: cmds.map((c) => ({ name: c.name, description: c.description, argumentHint: c.argumentHint })),
+        });
+      } catch (err2) {
+        this.log(`supportedCommands also failed: ${err2}`);
+      }
+    }
+  }
+
+  /** v4: context-window meter, polled at turn boundaries (never mid-stream). */
+  private async emitContextUsage(): Promise<void> {
+    if (!this.q) return;
+    try {
+      const u = await this.q.getContextUsage();
+      this.emit({ t: 'context_usage', usedTokens: u.totalTokens, maxTokens: u.maxTokens, percentage: u.percentage });
+    } catch (err) {
+      this.log(`getContextUsage failed: ${err}`);
+    }
+  }
+
+  /**
+   * v4: rewind to a checkpoint (a past user prompt). Two halves:
+   * 1. rewindFiles() restores the repo's files to just before that prompt.
+   * 2. The conversation forks: close the live query, re-arm resume of the same
+   *    session at the checkpoint's conversation anchor, and backfill the
+   *    trimmed transcript. The next prompt continues from that point.
+   * Forgiveness law in code form: nothing is lost, the old branch stays on disk.
+   */
+  async rewind(checkpointId: string): Promise<void> {
+    if (!this.q || !this.currentSessionId) {
+      this.emit({ t: 'rewind_done', ok: false, filesChanged: 0, error: 'no session to rewind' });
+      return;
+    }
+    const cp = this.normalizer.getCheckpoints().find((c) => c.id === checkpointId);
+    if (!cp) {
+      this.emit({ t: 'rewind_done', ok: false, filesChanged: 0, error: 'unknown checkpoint' });
+      return;
+    }
+    try {
+      const res = await this.q.rewindFiles(checkpointId);
+      if (!res.canRewind) {
+        this.emit({ t: 'rewind_done', ok: false, filesChanged: 0, error: res.error ?? 'files cannot be rewound' });
+        return;
+      }
+      // Conversation half: tear down and re-arm.
+      this.denyAllPending('rewound by user');
+      this.generation++; // silence the old pump before close() unwinds it
+      this.q.close();
+      this.q = null;
+      this.pendingResumeId = this.currentSessionId;
+      this.pendingResumeAt = cp.convAnchor;
+      this.normalizer.truncateCheckpoints(checkpointId);
+      this.emit({ t: 'checkpoint', items: this.normalizer.getCheckpoints() });
+      await this.backfillUpTo(this.currentSessionId, checkpointId);
+      this.emit({ t: 'rewind_done', ok: true, filesChanged: res.filesChanged?.length ?? 0 });
+      this.emit({ t: 'agent_idle' });
+    } catch (err) {
+      this.emit({ t: 'rewind_done', ok: false, filesChanged: 0, error: String(err) });
+    }
+  }
+
+  /** Backfill the transcript up to (excluding) the given user-message uuid. */
+  private async backfillUpTo(sessionId: string, stopUuid: string): Promise<void> {
+    try {
+      const msgs = await getSessionMessages(sessionId, { dir: this.resolvedCwd || undefined });
+      const kept: { role: 'user' | 'assistant'; text: string }[] = [];
+      for (const m of msgs) {
+        if (m.uuid === stopUuid) break;
+        if (m.type !== 'user' && m.type !== 'assistant') continue;
+        const text = extractText(m);
+        if (text.trim()) kept.push({ role: m.type, text });
+      }
+      this.emit({ t: 'history', items: kept });
+    } catch (err) {
+      this.log(`rewind backfill failed: ${err}`);
+      this.emit({ t: 'history', items: [] });
     }
   }
 

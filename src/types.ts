@@ -1,6 +1,8 @@
 // View-state and component prop contracts. Presentational components import
 // ONLY from here (and React); all event plumbing stays in state.ts/useAgent.ts.
 
+import type { Checkpoint, CommandInfo, MemoryScope, TodoItem } from '../shared/uiEvents';
+
 export interface ToolItem {
   id: number;
   tool: string;
@@ -10,6 +12,8 @@ export interface ToolItem {
 
 export type ChatItem =
   | { role: 'user' | 'assistant'; text: string }
+  | { role: 'thinking'; text: string; done: boolean } // v4: extended-thinking stream, collapsed once done
+  | { role: 'command_output'; text: string } // v4: local slash-command output (e.g. /cost)
   | { role: 'tools'; tools: ToolItem[] };
 
 /** Which dead-zone filler is active. Pure-HUD ('off') is first-class, not a fallback. */
@@ -25,6 +29,51 @@ export interface PromptBarProps {
   working: boolean;
   onSend: (text: string, attachments: string[]) => void;
   onInterrupt: () => void;
+  // ---- v4 ----
+  /** available slash commands (built-ins + .claude/commands/*), for the / menu */
+  commands: CommandInfo[];
+  /** latest @-mention lookup answer; null until the first query */
+  fileList: { query: string; items: string[] } | null;
+  /** ask the sidecar for files matching an @-mention token (debounced by the bar) */
+  onQueryFiles: (query: string) => void;
+}
+
+// ---- v4 component contracts ----
+
+export interface AgentTodosProps {
+  /** the agent's own TodoWrite list; render nothing when empty */
+  items: TodoItem[];
+}
+
+export interface ContextMeterProps {
+  usage: { usedTokens: number; maxTokens: number; percentage: number } | null;
+  /** non-null right after a compaction: the quiet "context tidied" note */
+  compactNote: { trigger: 'manual' | 'auto'; preTokens: number; postTokens?: number } | null;
+}
+
+export interface PlanApprovalCardProps {
+  /** the plan markdown from ExitPlanMode */
+  plan: string;
+  /** approve: allow the ExitPlanMode call + flip permission mode to build */
+  onApprove: () => void;
+  /** keep planning: deny — the agent stays in plan mode */
+  onKeepPlanning: () => void;
+}
+
+export interface RewindMenuProps {
+  /** rewindable anchors, oldest first (one per past prompt this session) */
+  checkpoints: Checkpoint[];
+  /** last rewind outcome; cleared on the next prompt */
+  rewindResult: { ok: boolean; filesChanged: number; error?: string } | null;
+  onRewind: (id: string) => void;
+}
+
+export interface MemoryPanelProps {
+  /** both CLAUDE.md scopes the agent loads (project + global); null until first load */
+  memory: { project: MemoryScope; global: MemoryScope } | null;
+  /** request a (re)load of both files */
+  onLoad: () => void;
+  onSave: (scope: 'project' | 'global', content: string) => void;
 }
 
 export interface ResponsePaneProps {

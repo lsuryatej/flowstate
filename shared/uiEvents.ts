@@ -18,6 +18,40 @@ export interface ParkedItem {
   done: boolean;
 }
 
+// v4: one entry of the agent's own todo list (TodoWrite tool), distinct from
+// the user's decomposed plan (PlanItem). Snapshot semantics like everything else.
+export interface TodoItem {
+  text: string;
+  status: 'pending' | 'in_progress' | 'completed';
+}
+
+// v4: a rewindable anchor — one per user prompt. `id` is the SDK user-message
+// uuid (what rewindFiles wants); `convAnchor` is the preceding assistant
+// message uuid (what resumeSessionAt wants), null for the first prompt.
+export interface Checkpoint {
+  id: string;
+  convAnchor: string | null;
+  label: string; // the prompt, truncated
+  ts: number;
+}
+
+// v4: one memory scope. `project` = the repo's CLAUDE.md; `global` = the
+// user's ~/.claude/CLAUDE.md (loaded for every repo). The agent reads both, so
+// the panel shows both — a blank project file no longer looks like a bug.
+export interface MemoryScope {
+  scope: 'project' | 'global';
+  path: string;
+  content: string;
+  exists: boolean;
+}
+
+// v4: a slash command the session supports (built-in + .claude/commands/*).
+export interface CommandInfo {
+  name: string; // without the leading slash
+  description: string;
+  argumentHint: string;
+}
+
 // v2: the four SDK permission modes we surface. `default` = ask before
 // dangerous ops (drives the canUseTool round-trip), `acceptEdits` = auto-accept
 // file edits but ask for the rest, `plan` = read-only planning, `bypass` = run
@@ -85,7 +119,7 @@ export type UiEvent =
   | { t: 'parked_checked'; id: string; xpTotal: number } // triage XP tick, no chime
   | { t: 'recovery'; where: string; next: string; blocked: string } // v1.4: 3-line card, derived, no LLM
   // ---- v2 (model + permissions + path) ----
-  | { t: 'permission_request'; id: string; tool: string; summary: string } // canUseTool round-trip: agent asks, UI answers with permission_response
+  | { t: 'permission_request'; id: string; tool: string; summary: string; canPersist?: boolean } // canUseTool round-trip: agent asks, UI answers with permission_response. canPersist: the SDK offered always-allow suggestions
   | { t: 'permission_resolved'; id: string } // request settled (answered, or superseded by interrupt) so the UI can drop it
   | { t: 'session_config'; model: string; permissionMode: PermissionMode; effort: EffortLevel } // echo current session config (emitted on start + set_*)
   | { t: 'cwd_status'; valid: boolean; resolved: string; message?: string } // v2: path validation feedback for the repo field
@@ -94,7 +128,20 @@ export type UiEvent =
   | { t: 'resumed'; sessionId: string } // a prior session was resumed
   | { t: 'auth_status'; method: 'subscription' | 'api_key' | 'none'; email?: string; plan?: string } // surfaced after the session initializes
   | { t: 'recent_projects'; items: { cwd: string; lastPrompt: string; lastSeen: number }[] } // the "where was I" list
-  | { t: 'session_list'; items: { sessionId: string; summary: string; lastModified: number; firstPrompt?: string }[] }; // past sessions for the active repo
+  | { t: 'session_list'; items: { sessionId: string; summary: string; lastModified: number; firstPrompt?: string }[] } // past sessions for the active repo
+  // ---- v4 (terminal parity: commands, thinking, todos, context, rewind, memory) ----
+  | { t: 'commands'; items: CommandInfo[] } // full snapshot of available slash commands (session init + commands_changed)
+  | { t: 'command_output'; text: string } // a local slash command (e.g. /compact, /cost) printed output
+  | { t: 'assistant_thinking'; delta: string } // streamed extended-thinking chunk (fills the dead zone honestly)
+  | { t: 'todos'; items: TodoItem[] } // the agent's own TodoWrite list, full snapshot
+  | { t: 'context_usage'; usedTokens: number; maxTokens: number; percentage: number } // polled after each turn
+  | { t: 'compacted'; trigger: 'manual' | 'auto'; preTokens: number; postTokens?: number } // a compaction happened ("context tidied")
+  | { t: 'file_list'; query: string; items: string[] } // @-mention autocomplete answers (repo-relative paths)
+  | { t: 'plan_ready'; id: string; plan: string } // plan-mode ExitPlanMode ask; answer via permission_response (allow = approve)
+  | { t: 'hook_activity'; name: string; status: 'started' | 'done' } // a settings.json hook fired (read-only indicator)
+  | { t: 'memory'; project: MemoryScope; global: MemoryScope } // both CLAUDE.md scopes the agent loads
+  | { t: 'checkpoint'; items: Checkpoint[] } // full snapshot of this session's rewindable anchors
+  | { t: 'rewind_done'; ok: boolean; filesChanged: number; error?: string }; // rewindFiles + conversation fork settled
 
 // Control messages the webview sends toward the sidecar
 // (webview -> Tauri command -> Rust -> sidecar stdin, one JSON per line).
@@ -112,14 +159,19 @@ export type ControlMsg =
   | { type: 'set_model'; model: string } // switch model (start-time + mid-session via setModel)
   | { type: 'set_permission_mode'; mode: PermissionMode } // switch permission mode (start-time + mid-session)
   | { type: 'set_effort'; level: EffortLevel } // switch reasoning effort (start-time + mid-session via applyFlagSettings)
-  | { type: 'permission_response'; id: string; decision: 'allow' | 'deny' } // answer a permission_request
+  | { type: 'permission_response'; id: string; decision: 'allow' | 'allow_always' | 'deny' } // answer a permission_request; allow_always persists the SDK's suggested rule to .claude/settings.local.json
   | { type: 'validate_cwd'; cwd: string } // check a repo path exists, emits cwd_status
   // ---- v3 (session continuity) ----
   | { type: 'resume_session'; cwd?: string } // boot: backfill history + arm resume of this repo's last session
   | { type: 'new_session' } // discard armed resume + clear chat; next prompt starts fresh
   | { type: 'get_recent_projects' } // request the recent-repos list
   | { type: 'list_sessions'; cwd?: string } // request past sessions for this repo
-  | { type: 'resume_specific'; sessionId: string; cwd?: string }; // arm resume of a chosen session + backfill its transcript
+  | { type: 'resume_specific'; sessionId: string; cwd?: string } // arm resume of a chosen session + backfill its transcript
+  // ---- v4 ----
+  | { type: 'list_files'; cwd?: string; query: string } // @-mention autocomplete: fuzzy file lookup in the repo
+  | { type: 'get_memory'; cwd?: string } // read project + global CLAUDE.md -> memory event
+  | { type: 'save_memory'; cwd?: string; scope: 'project' | 'global'; content: string } // write one scope's CLAUDE.md, re-emits memory
+  | { type: 'rewind'; id: string }; // rewind files+conversation to a checkpoint (user-message uuid)
 
 // Tauri event channel Rust emits every UiEvent on.
 export const UI_EVENT_CHANNEL = 'ui-event';

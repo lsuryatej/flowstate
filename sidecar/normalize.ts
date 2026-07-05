@@ -15,7 +15,7 @@
 // stream message types; the mappings above are the real stream equivalents.
 
 import type { SDKMessage } from '@anthropic-ai/claude-agent-sdk';
-import type { UiEvent } from '../shared/uiEvents.js';
+import type { Checkpoint, TodoItem, UiEvent } from '../shared/uiEvents.js';
 import { addXp, readXp } from './store.js';
 
 function truncate(s: string, max: number): string {
@@ -32,10 +32,55 @@ function summarizeTool(name: string, input: unknown): string {
   return truncate(meaningful.replace(/\s+/g, ' '), 90);
 }
 
+/** TodoWrite's input -> our TodoItem snapshot. Defensive: shape is tool input, not typed. */
+function parseTodos(input: unknown): TodoItem[] | null {
+  if (!input || typeof input !== 'object') return null;
+  const todos = (input as { todos?: unknown }).todos;
+  if (!Array.isArray(todos)) return null;
+  const items: TodoItem[] = [];
+  for (const t of todos) {
+    if (!t || typeof t !== 'object') continue;
+    const { content, status } = t as { content?: unknown; status?: unknown };
+    if (typeof content !== 'string') continue;
+    const st = status === 'in_progress' || status === 'completed' ? status : 'pending';
+    items.push({ text: content, status: st });
+  }
+  return items;
+}
+
+/** First text of a user prompt (string content or the first text block). */
+function promptText(content: unknown): string | null {
+  if (typeof content === 'string') return content;
+  if (Array.isArray(content)) {
+    for (const b of content) {
+      if (b && typeof b === 'object' && (b as { type?: string }).type === 'text') {
+        return (b as { text: string }).text;
+      }
+      if (b && typeof b === 'object' && (b as { type?: string }).type === 'tool_result') return null; // tool frame, not a prompt
+    }
+  }
+  return null;
+}
+
 export class Normalizer {
   private turnActive = false;
   /** tool_use_id -> tool name, so tool_finished can name the tool. */
   private toolNames = new Map<string, string>();
+  // v4: rewind anchors. One checkpoint per real user prompt; convAnchor is the
+  // uuid of the last assistant message seen BEFORE that prompt.
+  private checkpoints: Checkpoint[] = [];
+  private lastAssistantUuid: string | null = null;
+
+  /** The current rewind anchors (agentSession needs convAnchor on rewind). */
+  getCheckpoints(): Checkpoint[] {
+    return this.checkpoints;
+  }
+
+  /** After a rewind to checkpoint `id`, drop it and everything after it. */
+  truncateCheckpoints(id: string): void {
+    const idx = this.checkpoints.findIndex((c) => c.id === id);
+    if (idx !== -1) this.checkpoints = this.checkpoints.slice(0, idx);
+  }
 
   normalize(msg: SDKMessage): UiEvent[] {
     const out: UiEvent[] = [];
@@ -49,6 +94,30 @@ export class Normalizer {
           else if (msg.state === 'requires_action') {
             out.push({ t: 'agent_needs_input', reason: 'agent is waiting on you (permission or input)' });
           }
+        } else if (msg.subtype === 'compact_boundary') {
+          // v4: context was tidied (auto near the limit, or manual /compact).
+          out.push({
+            t: 'compacted',
+            trigger: msg.compact_metadata.trigger,
+            preTokens: msg.compact_metadata.pre_tokens,
+            postTokens: msg.compact_metadata.post_tokens,
+          });
+        } else if (msg.subtype === 'commands_changed') {
+          // v4: replace the cached slash-command list (init list goes stale).
+          out.push({
+            t: 'commands',
+            items: msg.commands.map((c: { name: string; description: string; argumentHint: string }) => ({
+              name: c.name,
+              description: c.description,
+              argumentHint: c.argumentHint,
+            })),
+          });
+        } else if (msg.subtype === 'local_command_output') {
+          out.push({ t: 'command_output', text: msg.content });
+        } else if (msg.subtype === 'hook_started') {
+          out.push({ t: 'hook_activity', name: msg.hook_name, status: 'started' });
+        } else if (msg.subtype === 'hook_response') {
+          out.push({ t: 'hook_activity', name: msg.hook_name, status: 'done' });
         }
         break;
 
@@ -58,17 +127,29 @@ export class Normalizer {
         const ev = msg.event;
         if (ev.type === 'content_block_delta' && ev.delta.type === 'text_delta') {
           out.push({ t: 'assistant_text', delta: ev.delta.text });
+        } else if (ev.type === 'content_block_delta' && ev.delta.type === 'thinking_delta') {
+          // v4: extended thinking streamed live — the honest dead-zone filler.
+          out.push({ t: 'assistant_thinking', delta: ev.delta.thinking });
         }
         break;
       }
 
       case 'assistant': {
         if (msg.parent_tool_use_id) break;
+        if (msg.uuid) this.lastAssistantUuid = msg.uuid; // v4: conversation anchor for the NEXT checkpoint
         this.enterWorking(out);
         // Text already streamed via stream_event deltas; only tool_use matters here.
         for (const block of msg.message.content) {
           if (block.type === 'tool_use') {
             this.toolNames.set(block.id, block.name);
+            // v4: the agent's own todo list renders as a rail section, not a tool row.
+            if (block.name === 'TodoWrite') {
+              const items = parseTodos(block.input);
+              if (items) {
+                out.push({ t: 'todos', items });
+                continue;
+              }
+            }
             out.push({ t: 'tool_started', tool: block.name, summary: summarizeTool(block.name, block.input) });
           }
         }
@@ -76,8 +157,22 @@ export class Normalizer {
       }
 
       case 'user': {
+        if (msg.parent_tool_use_id) break;
         const content = msg.message.content;
-        if (!Array.isArray(content)) break; // plain prompt replay, not tool results
+        // v4: a real user prompt with a uuid is a rewind anchor.
+        if (msg.uuid) {
+          const text = promptText(content);
+          if (text && text.trim()) {
+            this.checkpoints.push({
+              id: msg.uuid,
+              convAnchor: this.lastAssistantUuid,
+              label: truncate(text.trim().replace(/\s+/g, ' '), 80),
+              ts: Date.now(),
+            });
+            out.push({ t: 'checkpoint', items: [...this.checkpoints] });
+          }
+        }
+        if (!Array.isArray(content)) break; // plain prompt replay, no tool results
         for (const block of content) {
           if (typeof block === 'object' && block.type === 'tool_result') {
             const tool = this.toolNames.get(block.tool_use_id) ?? 'tool';

@@ -10,10 +10,11 @@ interface Props {
   ask: PermissionAsk;
   pending: number; // total queued, including this one
   onAllow: (id: string) => void;
+  onAllowAlways: (id: string) => void;
   onDeny: (id: string) => void;
 }
 
-function PermissionPrompt({ ask, pending, onAllow, onDeny }: Props) {
+function PermissionPrompt({ ask, pending, onAllow, onAllowAlways, onDeny }: Props) {
   return (
     <div className="fs-hairline-t fs-hairline-b my-1.5 flex items-center gap-3 bg-ember-500/[0.06] px-3 py-2">
       <span className="fs-pulse-dot mt-0.5 inline-block h-1.5 w-1.5 shrink-0 rounded-full bg-ember-400" />
@@ -31,6 +32,16 @@ function PermissionPrompt({ ask, pending, onAllow, onDeny }: Props) {
         >
           deny
         </button>
+        {ask.canPersist && (
+          <button
+            type="button"
+            onClick={() => onAllowAlways(ask.id)}
+            title="Allow and remember — saved to this repo's .claude settings so it never asks again"
+            className="rounded-md px-2 py-1 font-mono text-[11px] text-coal-500 transition-colors duration-200 hover:text-ember-300 active:scale-[0.98]"
+          >
+            always
+          </button>
+        )}
         <button
           type="button"
           onClick={() => onAllow(ask.id)}
