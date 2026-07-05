@@ -29,6 +29,18 @@ function log(msg: string): void {
   process.stderr.write(`[sidecar] ${msg}\n`);
 }
 
+// A stray throw or rejected promise must never silently take the sidecar down
+// (the webview only sees "sidecar exited" and can't recover). Surface it as an
+// error event and keep the process alive so the session can continue.
+process.on('uncaughtException', (err) => {
+  log(`uncaught exception: ${err?.stack ?? err}`);
+  emit({ t: 'error', message: `internal error: ${err?.message ?? err}` });
+});
+process.on('unhandledRejection', (reason) => {
+  log(`unhandled rejection: ${reason}`);
+  emit({ t: 'error', message: `internal error: ${reason}` });
+});
+
 const session = new AgentSession(emit, log);
 log('booted, waiting for prompts');
 
