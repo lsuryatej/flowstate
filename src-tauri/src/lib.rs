@@ -27,9 +27,7 @@ fn stored_api_key() -> Option<String> {
     keychain_entry().ok()?.get_password().ok()
 }
 
-/// Dev-mode path resolution: repo root relative to src-tauri.
-/// TODO(packaging): resolve via Tauri's sidecar API (externalBin) for release
-/// builds; a clean machine has no repo checkout. Known trap in SPEC_v0.md §9.
+/// Dev-mode path resolution: the Node sidecar script under the repo root.
 fn sidecar_script() -> std::path::PathBuf {
     std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
         .parent()
@@ -37,19 +35,46 @@ fn sidecar_script() -> std::path::PathBuf {
         .join("sidecar/dist/index.js")
 }
 
-fn spawn_sidecar(app: &AppHandle) -> std::io::Result<Child> {
-    let script = sidecar_script();
-    let repo_root = script
-        .parent()
-        .and_then(|p| p.parent())
-        .and_then(|p| p.parent())
-        .expect("sidecar script lives two levels under repo root")
-        .to_path_buf();
+/// Bundled externalBins live next to the app's main executable (Tauri strips
+/// the target-triple suffix at bundle time). Present only in a packaged .app;
+/// absent under `tauri dev`, which is how we tell the two apart.
+fn bundled_binary(name: &str) -> Option<std::path::PathBuf> {
+    let exe = std::env::current_exe().ok()?;
+    let candidate = exe.parent()?.join(name);
+    candidate.exists().then_some(candidate)
+}
 
-    let mut cmd = Command::new("node");
-    cmd.arg(&script)
-        .current_dir(&repo_root)
-        .stdin(Stdio::piped())
+fn spawn_sidecar(app: &AppHandle) -> std::io::Result<Child> {
+    // Packaged app: run the self-contained sidecar binary and point it at the
+    // bundled native Claude executable (no node/node_modules/repo on the user's
+    // machine). Dev: run the Node script from the repo, letting the SDK resolve
+    // the native binary from node_modules as usual.
+    let mut cmd = match bundled_binary("flowstate-sidecar") {
+        Some(sidecar_bin) => {
+            let mut cmd = Command::new(&sidecar_bin);
+            if let Some(claude_bin) = bundled_binary("claude") {
+                cmd.env("FLOWSTATE_CLAUDE_BIN", claude_bin);
+            }
+            // No repo to sit in; a stable, writable cwd for anything unscoped.
+            if let Some(home) = std::env::var_os("HOME") {
+                cmd.current_dir(home);
+            }
+            cmd
+        }
+        None => {
+            let script = sidecar_script();
+            let repo_root = script
+                .parent()
+                .and_then(|p| p.parent())
+                .and_then(|p| p.parent())
+                .expect("sidecar script lives two levels under repo root")
+                .to_path_buf();
+            let mut cmd = Command::new("node");
+            cmd.arg(&script).current_dir(&repo_root);
+            cmd
+        }
+    };
+    cmd.stdin(Stdio::piped())
         .stdout(Stdio::piped())
         .stderr(Stdio::piped());
     // Keychain key (if pasted) wins; otherwise the sidecar inherits the

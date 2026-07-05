@@ -6,7 +6,7 @@
   "build": {
     "beforeDevCommand": "bun run build:sidecar && bun run dev",
     "devUrl": "http://localhost:1420",
-    "beforeBuildCommand": "bun run build",
+    "beforeBuildCommand": "bun run build && node scripts/build-sidecar-binary.mjs",
     "frontendDist": "../dist"
   },
   "app": {
@@ -39,6 +39,7 @@
   "bundle": {
     "active": true,
     "targets": "all",
+    "externalBin": ["binaries/flowstate-sidecar", "binaries/claude"],
     "icon": [
       "icons/32x32.png",
       "icons/128x128.png",

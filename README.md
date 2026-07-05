@@ -93,24 +93,38 @@ point it at a repo, and go.
 
 ## Getting started
 
-**Prerequisites**
-- [Bun](https://bun.sh/)
-- [Rust](https://www.rust-lang.org/tools/install)
-- macOS, for now — the API-key store uses the keychain's native backend.
-  Windows/Linux support is a matter of swapping the keyring backend, not
-  rearchitecting; contributions welcome.
+flowstate is an Apple Silicon (arm64) macOS app for now. Intel and
+Windows/Linux aren't supported yet — see [Status](#status).
+
+### Install the app
+
+<!-- TODO before posting: cut a GitHub Release and attach the .dmg, then
+     point this at the release download. -->
+Grab the `.dmg` from [Releases](https://github.com/lsuryatej/flowstate/releases),
+open it, and drag flowstate to Applications. It's not yet code-signed, so on
+first open macOS will warn about an unidentified developer — right-click the
+app and choose **Open** once, and it'll launch normally after that.
+
+On first launch, either paste an Anthropic API key (top bar, stored in the
+OS keychain) or sign in with your Claude subscription in a terminal via
+`claude` → `/login` — flowstate picks up either automatically. Then set a
+repo path and send your first prompt.
+
+### Build from source
+
+**Prerequisites:** [Bun](https://bun.sh/), [Rust](https://www.rust-lang.org/tools/install), and `bun install` on an Apple Silicon Mac (the SDK's native Claude binary ships as an arm64 optional dependency).
 
 ```bash
 git clone https://github.com/lsuryatej/flowstate.git
 cd flowstate
 bun install
-bun run tauri dev
+bun run tauri dev      # run against the repo (fast iteration)
+bun run tauri build    # produce a distributable .app + .dmg
 ```
 
-On first launch, either paste an Anthropic API key (top bar, stored in the
-keychain) or sign in with your Claude subscription in a terminal via
-`claude` → `/login` — flowstate picks either up automatically. Set a repo
-path and send your first prompt.
+`tauri build` compiles the Node sidecar into a self-contained Bun binary
+and bundles it alongside the SDK's native Claude executable, so the shipped
+app needs no `node`, `node_modules`, or repo checkout on the user's machine.
 
 ## How it's built
 
@@ -137,7 +151,7 @@ Actively in development, pre-1.0. The core loop (v0) is live-tested; the
 executive-function layer — next-task, decompose, parking lot, recovery card
 — and the terminal-parity features above are code-complete and pass
 automated checks, with a manual pass still to come before every release.
-Expect rough edges. See [`ROADMAP.md`](ROADMAP.md) for what's next and
+Expect rough edges. See [`ROADMAP.md`](docs/ROADMAP.md) for what's next and
 what's deliberately not built yet (multi-window parallel sessions chief
 among them — real, but gated on a re-entry ledger so it doesn't become the
 anti-feature this app exists to avoid).
@@ -145,7 +159,7 @@ anti-feature this app exists to avoid).
 ## Design philosophy
 
 flowstate is built against a short list of non-negotiable laws, not vibes —
-see [`IDEOLOGY.md`](IDEOLOGY.md) for the full list. The short version:
+see [`IDEOLOGY.md`](docs/IDEOLOGY.md) for the full list. The short version:
 
 - Initiation is the wall, not execution — always offer a default, never a
   blank input.
