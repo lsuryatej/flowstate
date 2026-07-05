@@ -1,6 +1,17 @@
 {
   "name": "flowstate",
   "private": true,
+  "description": "A desktop companion for Claude Code, built for ADHD brains.",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/lsuryatej/flowstate.git"
+  },
+  "author": "Suryatej Lalam",
+  "license": "MIT",
+  "bugs": {
+    "url": "https://github.com/lsuryatej/flowstate/issues"
+  },
+  "homepage": "https://github.com/lsuryatej/flowstate#readme",
   "version": "0.1.0",
   "type": "module",
   "scripts": {
