@@ -104,7 +104,7 @@ function ResponsePane({ chat, arriving, lastResult, error }: ResponsePaneProps) 
 
       {lastResult && (
         <div className="fs-hairline-t px-4 py-2">
-          <p className={`mx-auto max-w-[68ch] text-xs ${lastResult.ok ? 'text-coal-300' : 'text-coal-500'}`}>
+          <p className={`mx-auto line-clamp-3 max-w-[68ch] break-words [overflow-wrap:anywhere] text-xs ${lastResult.ok ? 'text-coal-300' : 'text-coal-500'}`}>
             <span className={`mr-2 font-mono text-[10px] uppercase tracking-[0.14em] ${lastResult.ok ? 'text-ember-400' : 'text-coal-500'}`}>
               {lastResult.ok ? 'done' : 'ended'}
             </span>

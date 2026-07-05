@@ -76,7 +76,7 @@ function ToolHUD({ mode, currentTool, tools, turnStartedAt }: ToolHUDProps) {
             <div className="mb-1 font-mono text-[10px] uppercase tracking-[0.14em] text-coal-500">
               {currentTool.tool}
             </div>
-            <div className="fs-pulse-row text-xl leading-snug text-coal-100">{currentTool.summary}</div>
+            <div className="fs-pulse-row break-words [overflow-wrap:anywhere] text-xl leading-snug text-coal-100">{currentTool.summary}</div>
             <div className="fs-shimmer pointer-events-none absolute inset-0" />
           </div>
         ) : (

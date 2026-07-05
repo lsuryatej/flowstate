@@ -128,36 +128,38 @@ function PromptBar({ working, onSend, onInterrupt }: PromptBarProps) {
       )}
 
       <div className="flex items-end gap-2">
-        <button
-          type="button"
-          onClick={() => void pickAttachments()}
-          aria-label="attach files or images"
-          title="Attach files or images"
-          className="shrink-0 p-1.5 text-coal-600 transition-colors duration-200 hover:text-coal-300 active:scale-[0.98]"
-        >
-          <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" strokeWidth="1.5">
-            <path
-              d="M8 12.5V7a4 4 0 0 1 8 0v9a2.5 2.5 0 0 1-5 0V8.5a1 1 0 0 1 2 0V16"
-              strokeLinecap="round"
-              strokeLinejoin="round"
-            />
-          </svg>
-        </button>
-        <button
-          type="button"
-          onClick={() => void captureRegion()}
-          aria-label="capture a region screenshot"
-          title="Capture a region screenshot"
-          className="shrink-0 p-1.5 text-coal-600 transition-colors duration-200 hover:text-coal-300 active:scale-[0.98]"
-        >
-          <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" strokeWidth="1.5">
-            <path
-              d="M4 8a2 2 0 0 1 2-2h1.2l.8-1.2A1.5 1.5 0 0 1 9.25 4h5.5a1.5 1.5 0 0 1 1.25.8L16.8 6H18a2 2 0 0 1 2 2v9a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V8z"
-              strokeLinejoin="round"
-            />
-            <circle cx="12" cy="13" r="3.2" />
-          </svg>
-        </button>
+        <div className="flex shrink-0 items-center gap-0.5">
+          <button
+            type="button"
+            onClick={() => void pickAttachments()}
+            aria-label="attach files or images"
+            title="Attach files or images"
+            className="flex h-8 w-8 items-center justify-center rounded-md text-coal-500 transition-colors duration-150 hover:bg-coal-850 hover:text-coal-300 active:scale-95"
+          >
+            <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" strokeWidth="1.5">
+              <path
+                d="M8 12.5V7a4 4 0 0 1 8 0v9a2.5 2.5 0 0 1-5 0V8.5a1 1 0 0 1 2 0V16"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+              />
+            </svg>
+          </button>
+          <button
+            type="button"
+            onClick={() => void captureRegion()}
+            aria-label="capture a region screenshot"
+            title="Capture a region screenshot"
+            className="flex h-8 w-8 items-center justify-center rounded-md text-coal-500 transition-colors duration-150 hover:bg-coal-850 hover:text-coal-300 active:scale-95"
+          >
+            <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" strokeWidth="1.5">
+              <path
+                d="M4 8a2 2 0 0 1 2-2h1.2l.8-1.2A1.5 1.5 0 0 1 9.25 4h5.5a1.5 1.5 0 0 1 1.25.8L16.8 6H18a2 2 0 0 1 2 2v9a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V8z"
+                strokeLinejoin="round"
+              />
+              <circle cx="12" cy="13" r="3.2" />
+            </svg>
+          </button>
+        </div>
         <textarea
           className="max-h-40 min-h-[2.5rem] flex-1 resize-none bg-transparent px-2 py-1 text-sm leading-relaxed text-coal-100 outline-none placeholder:text-coal-600"
           value={text}
