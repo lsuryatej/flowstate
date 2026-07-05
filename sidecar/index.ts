@@ -108,7 +108,12 @@ rl.on('line', (line) => {
       .then((infos) =>
         emit({
           t: 'session_list',
-          items: infos.map((i) => ({ sessionId: i.sessionId, summary: i.summary, lastModified: i.lastModified, firstPrompt: i.firstPrompt })),
+          items: infos.map((i) => ({
+            sessionId: i.sessionId,
+            summary: i.summary,
+            lastModified: i.lastModified,
+            firstPrompt: i.firstPrompt,
+          })),
         }),
       )
       .catch((err) => log(`list_sessions failed: ${err}`));

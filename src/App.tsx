@@ -117,7 +117,9 @@ function useRailResize(mainRef: React.RefObject<HTMLElement | null>) {
 // documentElement[data-theme]; index.css re-points the coal/ember ramp.
 type Theme = 'system' | 'dark' | 'light';
 function useTheme(): [Theme, () => void] {
-  const [theme, setTheme] = useState<Theme>(() => (localStorage.getItem('fs.theme') as Theme) ?? 'system');
+  const [theme, setTheme] = useState<Theme>(
+    () => (localStorage.getItem('fs.theme') as Theme) ?? 'system',
+  );
   useEffect(() => {
     const mq = window.matchMedia('(prefers-color-scheme: dark)');
     const apply = () => {
@@ -154,7 +156,8 @@ function useElapsedLabel(turnStartedAt: number | null): string {
 }
 
 function App() {
-  const { state, deadZone, send, interrupt, sendControl, dismissNext, dismissRecovery } = useAppState();
+  const { state, deadZone, send, interrupt, sendControl, dismissNext, dismissRecovery } =
+    useAppState();
   const [fillerMode, setFillerMode] = usePersisted<FillerMode>('fs.fillerMode', 'scratchpad');
   const [mutedStr, setMutedStr] = usePersisted<'yes' | 'no'>('fs.muted', 'no');
   const muted = mutedStr === 'yes';
@@ -177,7 +180,10 @@ function App() {
   // on boot and on every change. The pickers read from these, not from the
   // echoed session_config, so switching never races the round-trip.
   const [model, setModelPref] = usePersisted<string>('fs.model', DEFAULT_MODEL);
-  const [permMode, setPermModePref] = usePersisted<PermissionMode>('fs.permMode', DEFAULT_PERMISSION_MODE);
+  const [permMode, setPermModePref] = usePersisted<PermissionMode>(
+    'fs.permMode',
+    DEFAULT_PERMISSION_MODE,
+  );
   const [effort, setEffortPref] = usePersisted<EffortLevel>('fs.effort', DEFAULT_EFFORT);
 
   // Audio unlock on first gesture; notification permission once (silent, law 11).
@@ -211,7 +217,9 @@ function App() {
         if (ok)
           sendNotification({
             title: 'flowstate',
-            body: state.lastResult?.ok ? 'done — come see the result' : 'the turn ended, worth a look',
+            body: state.lastResult?.ok
+              ? 'done — come see the result'
+              : 'the turn ended, worth a look',
           });
       });
     }
@@ -234,12 +242,21 @@ function App() {
     const id = window.setTimeout(() => {
       // v3: resume this repo's last session (backfills history) before
       // anything else so the transcript is in place before the first prompt.
-      void sendControl({ type: 'resume_session', cwd: localStorage.getItem('fs.cwd') ?? undefined });
+      void sendControl({
+        type: 'resume_session',
+        cwd: localStorage.getItem('fs.cwd') ?? undefined,
+      });
       void sendControl({ type: 'get_recovery' });
-      void sendControl({ type: 'suggest_next_task', cwd: localStorage.getItem('fs.cwd') ?? undefined });
+      void sendControl({
+        type: 'suggest_next_task',
+        cwd: localStorage.getItem('fs.cwd') ?? undefined,
+      });
       // v2: sync the persisted model + permission mode into the fresh sidecar
       // before the first turn can start.
-      void sendControl({ type: 'set_model', model: localStorage.getItem('fs.model') ?? DEFAULT_MODEL });
+      void sendControl({
+        type: 'set_model',
+        model: localStorage.getItem('fs.model') ?? DEFAULT_MODEL,
+      });
       void sendControl({
         type: 'set_permission_mode',
         mode: (localStorage.getItem('fs.permMode') as PermissionMode) ?? DEFAULT_PERMISSION_MODE,
@@ -319,8 +336,14 @@ function App() {
     [dismissNext, onSend],
   );
 
-  const onPark = useCallback((text: string) => void sendControl({ type: 'park', text }), [sendControl]);
-  const onCheck = useCallback((id: string, done: boolean) => void sendControl({ type: 'check_task', id, done }), [sendControl]);
+  const onPark = useCallback(
+    (text: string) => void sendControl({ type: 'park', text }),
+    [sendControl],
+  );
+  const onCheck = useCallback(
+    (id: string, done: boolean) => void sendControl({ type: 'check_task', id, done }),
+    [sendControl],
+  );
   const onCheckParked = useCallback(
     (id: string, done: boolean) => void sendControl({ type: 'check_parked', id, done }),
     [sendControl],
@@ -350,8 +373,14 @@ function App() {
   );
 
   // v2: answer a canUseTool round-trip.
-  const onAllow = useCallback((id: string) => void sendControl({ type: 'permission_response', id, decision: 'allow' }), [sendControl]);
-  const onDeny = useCallback((id: string) => void sendControl({ type: 'permission_response', id, decision: 'deny' }), [sendControl]);
+  const onAllow = useCallback(
+    (id: string) => void sendControl({ type: 'permission_response', id, decision: 'allow' }),
+    [sendControl],
+  );
+  const onDeny = useCallback(
+    (id: string) => void sendControl({ type: 'permission_response', id, decision: 'deny' }),
+    [sendControl],
+  );
   // v4: allow + persist the rule to the repo's .claude settings — asked once, never again.
   const onAllowAlways = useCallback(
     (id: string) => void sendControl({ type: 'permission_response', id, decision: 'allow_always' }),
@@ -363,7 +392,8 @@ function App() {
 
   // v4: @-mention lookups from the prompt bar (debounced bar-side).
   const onQueryFiles = useCallback(
-    (query: string) => void sendControl({ type: 'list_files', cwd: cwd.trim() || undefined, query }),
+    (query: string) =>
+      void sendControl({ type: 'list_files', cwd: cwd.trim() || undefined, query }),
     [cwd, sendControl],
   );
 
@@ -384,7 +414,10 @@ function App() {
   );
 
   // v4: rewind to a checkpoint (files + conversation; nothing is deleted).
-  const onRewind = useCallback((id: string) => void sendControl({ type: 'rewind', id }), [sendControl]);
+  const onRewind = useCallback(
+    (id: string) => void sendControl({ type: 'rewind', id }),
+    [sendControl],
+  );
 
   // v4: CLAUDE.md memory panel.
   const onLoadMemory = useCallback(
@@ -427,7 +460,10 @@ function App() {
         // give the fresh sidecar a beat to boot before control messages
         await new Promise((r) => setTimeout(r, 500));
         // re-sync config the boot effect normally sends
-        void sendControl({ type: 'set_model', model: localStorage.getItem('fs.model') ?? DEFAULT_MODEL });
+        void sendControl({
+          type: 'set_model',
+          model: localStorage.getItem('fs.model') ?? DEFAULT_MODEL,
+        });
         void sendControl({
           type: 'set_permission_mode',
           mode: (localStorage.getItem('fs.permMode') as PermissionMode) ?? DEFAULT_PERMISSION_MODE,
@@ -492,11 +528,14 @@ function App() {
   // send. The game, being a pure distraction, still yields the instant work is
   // ready (law 3).
   const hasScratch = Boolean(scratch.expect || scratch.verify || scratch.fallback);
-  const scratchVisible = fillerMode === 'scratchpad' && (deadZone || hasScratch || scratchFocused || scratchPinned);
+  const scratchVisible =
+    fillerMode === 'scratchpad' && (deadZone || hasScratch || scratchFocused || scratchPinned);
   const gameVisible = deadZone && fillerMode === 'game';
   const working = state.mode === 'working';
   const elapsed = useElapsedLabel(state.turnStartedAt);
-  const repoName = cwd.trim() ? (cwd.trim().split('/').filter(Boolean).pop() ?? cwd.trim()) : 'this repo';
+  const repoName = cwd.trim()
+    ? (cwd.trim().split('/').filter(Boolean).pop() ?? cwd.trim())
+    : 'this repo';
 
   return (
     <div className="flex max-h-[100dvh] min-h-[100dvh] flex-col bg-coal-950 font-sans text-coal-300 antialiased">
@@ -525,7 +564,11 @@ function App() {
               className={`inline-block h-1.5 w-1.5 shrink-0 rounded-full ${
                 state.cwdStatus.valid ? 'bg-emerald-500/70' : 'bg-red-500/70'
               }`}
-              title={state.cwdStatus.valid ? state.cwdStatus.resolved : (state.cwdStatus.message ?? 'path not found')}
+              title={
+                state.cwdStatus.valid
+                  ? state.cwdStatus.resolved
+                  : (state.cwdStatus.message ?? 'path not found')
+              }
             />
           )}
           <button
@@ -535,7 +578,14 @@ function App() {
             title="Browse for repo folder"
             className="p-1 text-coal-600 transition-colors duration-200 hover:text-coal-300 active:scale-[0.98]"
           >
-            <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" strokeWidth="1.5">
+            <svg
+              viewBox="0 0 24 24"
+              width="14"
+              height="14"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="1.5"
+            >
               <path
                 d="M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V7z"
                 strokeLinejoin="round"
@@ -638,7 +688,14 @@ function App() {
             onClick={() => setKeyOpen(true)}
             title="API key is stored in the OS keychain and never leaves this machine. Click to replace it."
           >
-            <svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" strokeWidth="2.5">
+            <svg
+              viewBox="0 0 24 24"
+              width="12"
+              height="12"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2.5"
+            >
               <path d="M5 13l4 4L19 7" strokeLinecap="round" strokeLinejoin="round" />
             </svg>
             key set
@@ -662,18 +719,42 @@ function App() {
           className="p-1 text-coal-600 transition-colors duration-200 hover:text-coal-300 active:scale-[0.98]"
         >
           {theme === 'system' ? (
-            <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" strokeWidth="1.5">
+            <svg
+              viewBox="0 0 24 24"
+              width="14"
+              height="14"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="1.5"
+            >
               <rect x="3" y="4" width="18" height="12" rx="1.5" />
               <path d="M8 20h8M12 16v4" strokeLinecap="round" />
             </svg>
           ) : theme === 'dark' ? (
-            <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" strokeWidth="1.5">
+            <svg
+              viewBox="0 0 24 24"
+              width="14"
+              height="14"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="1.5"
+            >
               <path d="M20 14.5A8 8 0 0 1 9.5 4a7 7 0 1 0 10.5 10.5z" strokeLinejoin="round" />
             </svg>
           ) : (
-            <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" strokeWidth="1.5">
+            <svg
+              viewBox="0 0 24 24"
+              width="14"
+              height="14"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="1.5"
+            >
               <circle cx="12" cy="12" r="4" />
-              <path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4" strokeLinecap="round" />
+              <path
+                d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"
+                strokeLinecap="round"
+              />
             </svg>
           )}
         </button>
@@ -712,7 +793,12 @@ function App() {
               </button>
             </div>
           )}
-          <ResponsePane chat={state.chat} arriving={arriving} lastResult={state.lastResult} error={state.error} />
+          <ResponsePane
+            chat={state.chat}
+            arriving={arriving}
+            lastResult={state.lastResult}
+            error={state.error}
+          />
 
           {/* statusline + prompt share the reading measure so the column reads
               as one object (state + elapsed per law 7; repo on the right). */}
@@ -724,7 +810,9 @@ function App() {
                   {state.currentTool ? state.currentTool.tool.toLowerCase() : 'thinking'}
                   <span className="tabular-nums text-ember-400">{elapsed}</span>
                   {/* v4: a settings.json hook is running — real activity, named */}
-                  {state.hookActivity && <span className="text-coal-600">hook: {state.hookActivity}</span>}
+                  {state.hookActivity && (
+                    <span className="text-coal-600">hook: {state.hookActivity}</span>
+                  )}
                 </span>
               ) : (
                 <span className="text-coal-600">idle</span>
@@ -732,7 +820,11 @@ function App() {
               <span className="flex items-center gap-3">
                 {/* v4: context meter + rewind live where the eye already rests */}
                 <ContextMeter usage={state.contextUsage} compactNote={state.compactNote} />
-                <RewindMenu checkpoints={state.checkpoints} rewindResult={state.rewindResult} onRewind={onRewind} />
+                <RewindMenu
+                  checkpoints={state.checkpoints}
+                  rewindResult={state.rewindResult}
+                  onRewind={onRewind}
+                />
                 <span className="text-coal-600">{repoName}</span>
               </span>
             </div>
@@ -796,7 +888,9 @@ function App() {
           {/* filler config: persistent one-click toggle (law 13) */}
           <div className="fs-hairline-t flex items-center justify-between px-4 py-1.5">
             <span className="flex items-center gap-2">
-              <span className="font-mono text-[10px] uppercase tracking-[0.14em] text-coal-600">dead zone</span>
+              <span className="font-mono text-[10px] uppercase tracking-[0.14em] text-coal-600">
+                dead zone
+              </span>
               {/* pre-turn capture: only offered when the scratchpad is chosen
                   but collapsed — one click to jot intent before sending */}
               {fillerMode === 'scratchpad' && !scratchVisible && (
@@ -828,7 +922,8 @@ function App() {
             }`}
             onFocus={() => setScratchFocused(true)}
             onBlur={(e) => {
-              if (!e.currentTarget.contains(e.relatedTarget as Node | null)) setScratchFocused(false);
+              if (!e.currentTarget.contains(e.relatedTarget as Node | null))
+                setScratchFocused(false);
             }}
           >
             <Scratchpad visible={scratchVisible} value={scratch} onChange={setScratch} />

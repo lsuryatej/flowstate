@@ -22,7 +22,9 @@ function ContextMeter({ usage, compactNote }: ContextMeterProps) {
           className="inline-flex items-center gap-1.5"
           title={`Context window: ${formatTokens(usage.usedTokens)} of ${formatTokens(usage.maxTokens)} tokens used (${Math.round(usage.percentage)}%). The session compacts automatically near the top.`}
         >
-          <span className="font-mono text-[10px] uppercase tracking-[0.14em] text-coal-600">context</span>
+          <span className="font-mono text-[10px] uppercase tracking-[0.14em] text-coal-600">
+            context
+          </span>
           <span className="inline-block h-[3px] w-14 overflow-hidden rounded-full bg-coal-800 align-middle">
             <span
               className={`block h-full rounded-full ${hot ? 'bg-ember-500/80' : 'bg-coal-500'}`}

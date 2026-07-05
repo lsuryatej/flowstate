@@ -139,7 +139,14 @@ function reduce(s: AppState, a: Action): AppState {
     case 'session_started':
       return { ...s, sessionId: e.sessionId };
     case 'agent_working':
-      return { ...s, mode: 'working', turnStartedAt: Date.now(), tools: [], currentTool: null, needsInput: null };
+      return {
+        ...s,
+        mode: 'working',
+        turnStartedAt: Date.now(),
+        tools: [],
+        currentTool: null,
+        needsInput: null,
+      };
     case 'agent_idle': {
       // v4: turn over — collapse any still-open thinking block.
       const chat = s.chat.map((c) => (c.role === 'thinking' && !c.done ? { ...c, done: true } : c));
@@ -152,9 +159,13 @@ function reduce(s: AppState, a: Action): AppState {
       // v4: answer text arriving marks any open thinking block as done.
       const ti = chat.length - 1;
       if (chat[ti]?.role === 'thinking' && !(chat[ti] as { done: boolean }).done)
-        chat[ti] = { ...(chat[ti] as { role: 'thinking'; text: string; done: boolean }), done: true };
+        chat[ti] = {
+          ...(chat[ti] as { role: 'thinking'; text: string; done: boolean }),
+          done: true,
+        };
       const last = chat[chat.length - 1];
-      if (last?.role === 'assistant') chat[chat.length - 1] = { ...last, text: last.text + e.delta };
+      if (last?.role === 'assistant')
+        chat[chat.length - 1] = { ...last, text: last.text + e.delta };
       else chat.push({ role: 'assistant', text: e.delta });
       return { ...s, chat };
     }
@@ -163,7 +174,8 @@ function reduce(s: AppState, a: Action): AppState {
       // collapsed once the answer starts). Fills the dead zone honestly.
       const chat = [...s.chat];
       const last = chat[chat.length - 1];
-      if (last?.role === 'thinking' && !last.done) chat[chat.length - 1] = { ...last, text: last.text + e.delta };
+      if (last?.role === 'thinking' && !last.done)
+        chat[chat.length - 1] = { ...last, text: last.text + e.delta };
       else chat.push({ role: 'thinking', text: e.delta, done: false });
       return { ...s, chat };
     }
@@ -174,7 +186,8 @@ function reduce(s: AppState, a: Action): AppState {
       const tools = [...s.tools, item];
       const chat = [...s.chat];
       const last = chat[chat.length - 1];
-      if (last?.role === 'tools') chat[chat.length - 1] = { role: 'tools', tools: [...last.tools, item] };
+      if (last?.role === 'tools')
+        chat[chat.length - 1] = { role: 'tools', tools: [...last.tools, item] };
       else chat.push({ role: 'tools', tools: [item] });
       return { ...s, tools, currentTool: item, chat };
     }
@@ -233,7 +246,10 @@ function reduce(s: AppState, a: Action): AppState {
     case 'permission_request':
       return {
         ...s,
-        permissionAsks: [...s.permissionAsks, { id: e.id, tool: e.tool, summary: e.summary, canPersist: e.canPersist }],
+        permissionAsks: [
+          ...s.permissionAsks,
+          { id: e.id, tool: e.tool, summary: e.summary, canPersist: e.canPersist },
+        ],
       };
     case 'permission_resolved':
       return {
@@ -247,7 +263,11 @@ function reduce(s: AppState, a: Action): AppState {
       return { ...s, cwdStatus: { valid: e.valid, resolved: e.resolved, message: e.message } };
     // ---- v3 ----
     case 'history':
-      return { ...s, chat: e.items.map((i) => ({ role: i.role, text: i.text })), resumed: e.items.length === 0 ? false : s.resumed };
+      return {
+        ...s,
+        chat: e.items.map((i) => ({ role: i.role, text: i.text })),
+        resumed: e.items.length === 0 ? false : s.resumed,
+      };
     case 'resumed':
       return { ...s, resumed: true };
     case 'auth_status':
@@ -264,9 +284,19 @@ function reduce(s: AppState, a: Action): AppState {
     case 'todos':
       return { ...s, todos: e.items };
     case 'context_usage':
-      return { ...s, contextUsage: { usedTokens: e.usedTokens, maxTokens: e.maxTokens, percentage: e.percentage } };
+      return {
+        ...s,
+        contextUsage: {
+          usedTokens: e.usedTokens,
+          maxTokens: e.maxTokens,
+          percentage: e.percentage,
+        },
+      };
     case 'compacted':
-      return { ...s, compactNote: { trigger: e.trigger, preTokens: e.preTokens, postTokens: e.postTokens } };
+      return {
+        ...s,
+        compactNote: { trigger: e.trigger, preTokens: e.preTokens, postTokens: e.postTokens },
+      };
     case 'plan_ready':
       return { ...s, planReady: { id: e.id, plan: e.plan } };
     case 'hook_activity':

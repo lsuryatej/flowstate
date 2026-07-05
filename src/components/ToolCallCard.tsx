@@ -8,7 +8,9 @@ import type { ToolItem } from '../types';
 
 function StatusDot({ status }: { status: ToolItem['status'] }) {
   if (status === 'running') {
-    return <span className="fs-pulse-dot inline-block h-1.5 w-1.5 shrink-0 rounded-full bg-ember-500/80" />;
+    return (
+      <span className="fs-pulse-dot inline-block h-1.5 w-1.5 shrink-0 rounded-full bg-ember-500/80" />
+    );
   }
   if (status === 'fail') {
     return <span className="inline-block h-1.5 w-1.5 shrink-0 rounded-full bg-ember-400" />;
@@ -42,7 +44,8 @@ function ToolCallCard({ tools }: { tools: ToolItem[] }) {
           {failCount > 0 && <span className="text-coal-400"> · {failCount} failed</span>}
           {anyRunning && (
             <span className="ml-1 inline-flex items-center gap-1">
-              · running <span className="fs-pulse-dot inline-block h-1.5 w-1.5 rounded-full bg-ember-500/80" />
+              · running{' '}
+              <span className="fs-pulse-dot inline-block h-1.5 w-1.5 rounded-full bg-ember-500/80" />
             </span>
           )}
         </span>

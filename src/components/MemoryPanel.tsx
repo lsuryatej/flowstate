@@ -35,8 +35,13 @@ function ScopeEditor({
   return (
     <div className="mb-2">
       <div className="mb-1 flex items-baseline justify-between gap-2">
-        <span className="font-mono text-[10px] uppercase tracking-[0.14em] text-coal-600">{label}</span>
-        <span className="truncate font-mono text-[10px] text-coal-700" title={scope?.path || undefined}>
+        <span className="font-mono text-[10px] uppercase tracking-[0.14em] text-coal-600">
+          {label}
+        </span>
+        <span
+          className="truncate font-mono text-[10px] text-coal-700"
+          title={scope?.path || undefined}
+        >
           {scope?.exists ? 'loaded' : 'not created yet'}
         </span>
       </div>
@@ -87,8 +92,14 @@ function MemoryPanel({ memory, onLoad, onSave }: MemoryPanelProps) {
 
   return (
     <div>
-      <button type="button" onClick={handleToggle} className="flex w-full items-center justify-between px-4 py-1.5">
-        <span className="font-mono text-[10px] uppercase tracking-[0.14em] text-coal-600">memory · CLAUDE.md</span>
+      <button
+        type="button"
+        onClick={handleToggle}
+        className="flex w-full items-center justify-between px-4 py-1.5"
+      >
+        <span className="font-mono text-[10px] uppercase tracking-[0.14em] text-coal-600">
+          memory · CLAUDE.md
+        </span>
         <svg
           width="10"
           height="10"
@@ -119,7 +130,8 @@ function MemoryPanel({ memory, onLoad, onSave }: MemoryPanelProps) {
             onSave={(content) => onSave('global', content)}
           />
           <p className="text-[10px] leading-relaxed text-coal-600">
-            the agent reads both at the start of every session · global applies everywhere, this repo overrides it
+            the agent reads both at the start of every session · global applies everywhere, this
+            repo overrides it
           </p>
         </div>
       )}

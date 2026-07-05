@@ -42,7 +42,12 @@ export async function utilityQuery(prompt: string): Promise<string> {
  */
 export function extractJson<T>(text: string): T | null {
   const fenced = /```(?:json)?\s*([\s\S]*?)```/.exec(text);
-  const candidates = [fenced?.[1], text, text.slice(text.indexOf('{')), text.slice(text.indexOf('['))];
+  const candidates = [
+    fenced?.[1],
+    text,
+    text.slice(text.indexOf('{')),
+    text.slice(text.indexOf('[')),
+  ];
   for (const c of candidates) {
     if (!c) continue;
     try {

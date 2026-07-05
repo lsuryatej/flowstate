@@ -14,15 +14,21 @@ function RecoveryCard({ where, next, blocked, onDismiss }: RecoveryCardProps) {
   return (
     <div className="fs-glass fs-settle-in rounded-xl p-5 space-y-3">
       <div className="flex items-center gap-3">
-        <span className="font-mono text-[10px] uppercase tracking-[0.14em] text-coal-500 w-16 shrink-0">where</span>
+        <span className="font-mono text-[10px] uppercase tracking-[0.14em] text-coal-500 w-16 shrink-0">
+          where
+        </span>
         <span className="text-sm text-coal-100 truncate">{where}</span>
       </div>
       <div className="flex items-center gap-3">
-        <span className="font-mono text-[10px] uppercase tracking-[0.14em] text-coal-500 w-16 shrink-0">next</span>
+        <span className="font-mono text-[10px] uppercase tracking-[0.14em] text-coal-500 w-16 shrink-0">
+          next
+        </span>
         <span className="text-sm text-coal-100 truncate">{next}</span>
       </div>
       <div className="flex items-center gap-3">
-        <span className="font-mono text-[10px] uppercase tracking-[0.14em] text-coal-500 w-16 shrink-0">blocked</span>
+        <span className="font-mono text-[10px] uppercase tracking-[0.14em] text-coal-500 w-16 shrink-0">
+          blocked
+        </span>
         <span className={`text-sm truncate ${blocked ? 'text-ember-400' : 'text-coal-600'}`}>
           {blocked || 'nothing'}
         </span>

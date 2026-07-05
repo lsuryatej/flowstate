@@ -43,7 +43,15 @@ function ModelPicker({ value, onChange }: Props) {
         className="inline-flex items-center gap-1 rounded-md px-2 py-1 font-mono text-[11px] text-coal-400 outline-none transition-colors duration-150 hover:bg-coal-850 hover:text-coal-200 focus-visible:outline-2 focus-visible:outline-ember-500/60"
       >
         {active.label} {active.version}
-        <svg viewBox="0 0 24 24" width="10" height="10" fill="none" stroke="currentColor" strokeWidth="2" className="text-coal-600">
+        <svg
+          viewBox="0 0 24 24"
+          width="10"
+          height="10"
+          fill="none"
+          stroke="currentColor"
+          strokeWidth="2"
+          className="text-coal-600"
+        >
           <path d="M6 9l6 6 6-6" strokeLinecap="round" strokeLinejoin="round" />
         </svg>
       </button>
@@ -69,13 +77,23 @@ function ModelPicker({ value, onChange }: Props) {
               >
                 <span className="mt-0.5 w-3 shrink-0">
                   {isActive && (
-                    <svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" strokeWidth="2.5" className="text-ember-400">
+                    <svg
+                      viewBox="0 0 24 24"
+                      width="12"
+                      height="12"
+                      fill="none"
+                      stroke="currentColor"
+                      strokeWidth="2.5"
+                      className="text-ember-400"
+                    >
                       <path d="M5 13l4 4L19 7" strokeLinecap="round" strokeLinejoin="round" />
                     </svg>
                   )}
                 </span>
                 <span className="min-w-0">
-                  <span className={`block font-mono text-[11px] ${isActive ? 'text-coal-100' : 'text-coal-200'}`}>
+                  <span
+                    className={`block font-mono text-[11px] ${isActive ? 'text-coal-100' : 'text-coal-200'}`}
+                  >
                     {m.label} <span className="text-coal-400">{m.version}</span>
                   </span>
                   <span className="block text-[10px] leading-tight text-coal-500">{m.blurb}</span>

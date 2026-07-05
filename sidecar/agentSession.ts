@@ -75,7 +75,10 @@ function attachmentBlock(path: string, log: (s: string) => void): ContentBlockPa
         log(`attachment too large, skipping: ${path}`);
         return null;
       }
-      return { type: 'image', source: { type: 'base64', media_type: media, data: readFileSync(path).toString('base64') } };
+      return {
+        type: 'image',
+        source: { type: 'base64', media_type: media, data: readFileSync(path).toString('base64') },
+      };
     }
     if (size > MAX_TEXT_BYTES) {
       log(`text attachment too large, skipping: ${path}`);
@@ -97,7 +100,10 @@ function extractText(m: SessionMessage): string {
     return content
       .filter(
         (b): b is { type: string; text: string } =>
-          !!b && typeof b === 'object' && (b as { type?: string }).type === 'text' && typeof (b as { text?: string }).text === 'string',
+          !!b &&
+          typeof b === 'object' &&
+          (b as { type?: string }).type === 'text' &&
+          typeof (b as { text?: string }).text === 'string',
       )
       .map((b) => b.text)
       .join('');
@@ -121,7 +127,10 @@ export class AgentSession {
   // v2: pending canUseTool requests, keyed by the id we hand the webview.
   // v4: each carries the SDK's always-allow suggestions so allow_always can
   // return them as updatedPermissions.
-  private pending = new Map<string, { settle: (r: PermissionResult) => void; suggestions?: PermissionUpdate[] }>();
+  private pending = new Map<
+    string,
+    { settle: (r: PermissionResult) => void; suggestions?: PermissionUpdate[] }
+  >();
   private nextReqId = 0;
 
   // v3: session continuity. pendingResumeId is armed by resume() (boot) and
@@ -149,7 +158,9 @@ export class AgentSession {
       .slice(0, MAX_ATTACHMENTS)
       .map((p) => attachmentBlock(p, this.log))
       .filter((b): b is ContentBlockParam => b !== null);
-    const content = blocks.length ? [...blocks, { type: 'text', text } satisfies ContentBlockParam] : text;
+    const content = blocks.length
+      ? [...blocks, { type: 'text', text } satisfies ContentBlockParam]
+      : text;
     this.queue.push({
       type: 'user',
       message: { role: 'user', content },
@@ -187,7 +198,9 @@ export class AgentSession {
   setPermissionMode(mode: PermissionMode): void {
     this.permissionMode = mode;
     if (this.q)
-      void this.q.setPermissionMode(toSdkMode(mode)).catch((e) => this.log(`setPermissionMode failed: ${e}`));
+      void this.q
+        .setPermissionMode(toSdkMode(mode))
+        .catch((e) => this.log(`setPermissionMode failed: ${e}`));
     this.emitConfig();
   }
 
@@ -202,13 +215,20 @@ export class AgentSession {
     this.effort = level;
     if (this.q) {
       const applied = level === 'max' ? 'xhigh' : level;
-      void this.q.applyFlagSettings({ effortLevel: applied }).catch((e) => this.log(`setEffort failed: ${e}`));
+      void this.q
+        .applyFlagSettings({ effortLevel: applied })
+        .catch((e) => this.log(`setEffort failed: ${e}`));
     }
     this.emitConfig();
   }
 
   private emitConfig(): void {
-    this.emit({ t: 'session_config', model: this.model, permissionMode: this.permissionMode, effort: this.effort });
+    this.emit({
+      t: 'session_config',
+      model: this.model,
+      permissionMode: this.permissionMode,
+      effort: this.effort,
+    });
   }
 
   /** v2: the webview's answer to a permission_request. v4: allow_always also
@@ -224,7 +244,11 @@ export class AgentSession {
     if (decision === 'deny') {
       req.settle({ behavior: 'deny', message: 'denied by user' });
     } else if (decision === 'allow_always' && req.suggestions?.length) {
-      req.settle({ behavior: 'allow', updatedInput: undefined, updatedPermissions: req.suggestions });
+      req.settle({
+        behavior: 'allow',
+        updatedInput: undefined,
+        updatedPermissions: req.suggestions,
+      });
     } else {
       req.settle({ behavior: 'allow', updatedInput: undefined });
     }
@@ -273,7 +297,8 @@ export class AgentSession {
         // modes (default/acceptEdits/plan) still gate through canUseTool below.
         allowDangerouslySkipPermissions: true,
         ...getSharedQueryOptions(),
-        canUseTool: (toolName, toolInput, opts) => this.requestPermission(toolName, toolInput, opts?.suggestions),
+        canUseTool: (toolName, toolInput, opts) =>
+          this.requestPermission(toolName, toolInput, opts?.suggestions),
       },
     });
     this.pendingResumeId = null;
@@ -293,7 +318,13 @@ export class AgentSession {
       const plan = typeof input.plan === 'string' ? input.plan : '';
       this.emit({ t: 'plan_ready', id, plan });
     } else {
-      this.emit({ t: 'permission_request', id, tool, summary: summarize(tool, input), canPersist: !!suggestions?.length });
+      this.emit({
+        t: 'permission_request',
+        id,
+        tool,
+        summary: summarize(tool, input),
+        canPersist: !!suggestions?.length,
+      });
     }
     return new Promise<PermissionResult>((settle) => this.pending.set(id, { settle, suggestions }));
   }
@@ -347,7 +378,11 @@ export class AgentSession {
       const cmds = init.commands ?? [];
       this.emit({
         t: 'commands',
-        items: cmds.map((c) => ({ name: c.name, description: c.description, argumentHint: c.argumentHint })),
+        items: cmds.map((c) => ({
+          name: c.name,
+          description: c.description,
+          argumentHint: c.argumentHint,
+        })),
       });
     } catch (err) {
       this.log(`initializationResult failed, falling back to supportedCommands: ${err}`);
@@ -355,7 +390,11 @@ export class AgentSession {
         const cmds = await this.q.supportedCommands();
         this.emit({
           t: 'commands',
-          items: cmds.map((c) => ({ name: c.name, description: c.description, argumentHint: c.argumentHint })),
+          items: cmds.map((c) => ({
+            name: c.name,
+            description: c.description,
+            argumentHint: c.argumentHint,
+          })),
         });
       } catch (err2) {
         this.log(`supportedCommands also failed: ${err2}`);
@@ -368,7 +407,12 @@ export class AgentSession {
     if (!this.q) return;
     try {
       const u = await this.q.getContextUsage();
-      this.emit({ t: 'context_usage', usedTokens: u.totalTokens, maxTokens: u.maxTokens, percentage: u.percentage });
+      this.emit({
+        t: 'context_usage',
+        usedTokens: u.totalTokens,
+        maxTokens: u.maxTokens,
+        percentage: u.percentage,
+      });
     } catch (err) {
       this.log(`getContextUsage failed: ${err}`);
     }
@@ -395,7 +439,12 @@ export class AgentSession {
     try {
       const res = await this.q.rewindFiles(checkpointId);
       if (!res.canRewind) {
-        this.emit({ t: 'rewind_done', ok: false, filesChanged: 0, error: res.error ?? 'files cannot be rewound' });
+        this.emit({
+          t: 'rewind_done',
+          ok: false,
+          filesChanged: 0,
+          error: res.error ?? 'files cannot be rewound',
+        });
         return;
       }
       // Conversation half: tear down and re-arm.
@@ -447,10 +496,15 @@ export class AgentSession {
       );
       // A subscription can report through any of these, depending on the login
       // flow — checking only apiKeySource==='oauth' mislabels it as an API key.
-      const sub = a.apiKeySource === 'oauth' || a.tokenSource === 'oauth' || Boolean(a.subscriptionType);
+      const sub =
+        a.apiKeySource === 'oauth' || a.tokenSource === 'oauth' || Boolean(a.subscriptionType);
       // A real pasted/env key surfaces as a concrete apiKeySource.
       const key = Boolean(a.apiKeySource) && a.apiKeySource !== 'oauth';
-      const method: 'subscription' | 'api_key' | 'none' = sub ? 'subscription' : key ? 'api_key' : 'none';
+      const method: 'subscription' | 'api_key' | 'none' = sub
+        ? 'subscription'
+        : key
+          ? 'api_key'
+          : 'none';
       this.emit({ t: 'auth_status', method, email: a.email, plan: a.subscriptionType });
     } catch (err) {
       this.log(`accountInfo failed: ${err}`);

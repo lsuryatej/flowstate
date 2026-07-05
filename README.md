@@ -1,19 +1,19 @@
 <div align="center">
   <img src="src-tauri/icons/128x128@2x.png" alt="flowstate" width="96" height="96" />
 
-  # flowstate
+# flowstate
 
-  **A desktop companion for Claude Code, built for ADHD brains.**
+**A desktop companion for Claude Code, built for ADHD brains.**
 
-  It carries the executive-function load a coding session normally dumps on
-  you — what to do next, where you left off, capturing the tangent without
-  losing the thread — and fills the agent's thinking time so your attention
-  never has to leak to another tab.
+It carries the executive-function load a coding session normally dumps on
+you — what to do next, where you left off, capturing the tangent without
+losing the thread — and fills the agent's thinking time so your attention
+never has to leak to another tab.
 
-  [![Tauri](https://img.shields.io/badge/Tauri-v2-24C8DB?style=flat-square&logo=tauri)](https://tauri.app/)
-  [![React](https://img.shields.io/badge/React-19-61DAFB?style=flat-square&logo=react)](https://react.dev/)
-  [![TypeScript](https://img.shields.io/badge/TypeScript-5.8-3178C6?style=flat-square&logo=typescript)](https://www.typescriptlang.org/)
-  [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg?style=flat-square)](LICENSE)
+[![Tauri](https://img.shields.io/badge/Tauri-v2-24C8DB?style=flat-square&logo=tauri)](https://tauri.app/)
+[![React](https://img.shields.io/badge/React-19-61DAFB?style=flat-square&logo=react)](https://react.dev/)
+[![TypeScript](https://img.shields.io/badge/TypeScript-5.8-3178C6?style=flat-square&logo=typescript)](https://www.typescriptlang.org/)
+[![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg?style=flat-square)](LICENSE)
 </div>
 
 <br />
@@ -41,6 +41,7 @@ point it at a repo, and go.
 ## What it does
 
 **The loop**
+
 - Prompt bar is the one elevated surface in the app; Enter sends, Shift+Enter
   for a newline, and you can keep drafting the next thought while the agent
   is still working on the current one.
@@ -52,6 +53,7 @@ point it at a repo, and go.
   answer. No streaks, no red, no guilt states — a missed day costs nothing.
 
 **Staying oriented**
+
 - A next-task suggestion on boot, read off the target repo's own state file.
 - `/plan <a fuzzy goal>` decomposes it into a checklist of small steps;
   checking one off is its own small reward.
@@ -64,6 +66,7 @@ point it at a repo, and go.
   to jump to an older one.
 
 **Model & session control**
+
 - Switch Opus / Sonnet / Haiku / Fable and a reasoning-effort slider, live,
   mid-session.
 - Four permission modes — Ask, Accept edits, Plan, Auto — with an inline
@@ -74,6 +77,7 @@ point it at a repo, and go.
   the machine) or sign in with your Claude subscription.
 
 **Terminal-grade extras**
+
 - A slash-command menu (built-ins plus anything in `.claude/commands/`) and
   `@file` mentions with fuzzy autocomplete, right in the prompt bar.
 - The agent's own to-do list (`TodoWrite`) surfaces as its own rail section,
@@ -86,7 +90,7 @@ point it at a repo, and go.
   `.claude/settings.local.json` so it never asks again.
 - `.claude/settings.json` hooks and both the repo's and your global
   `CLAUDE.md` are respected — and both are editable right in the app.
-- Rewind restores files *and* conversation to any earlier prompt in the
+- Rewind restores files _and_ conversation to any earlier prompt in the
   session. Nothing is deleted; the current branch stays on disk.
 - Start typing anywhere in the window (nothing else focused, nothing
   selected) and it lands in the prompt bar — no click required.
@@ -100,6 +104,7 @@ Windows/Linux aren't supported yet — see [Status](#status).
 
 <!-- TODO before posting: cut a GitHub Release and attach the .dmg, then
      point this at the release download. -->
+
 Grab the `.dmg` from [Releases](https://github.com/lsuryatej/flowstate/releases),
 open it, and drag flowstate to Applications. It's not yet code-signed, so on
 first open macOS will warn about an unidentified developer — right-click the

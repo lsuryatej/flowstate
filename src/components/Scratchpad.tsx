@@ -13,7 +13,9 @@ function Scratchpad({ visible, value, onChange }: ScratchpadProps) {
       aria-hidden={!visible}
     >
       <div className="flex items-center justify-between px-4 pt-3 pb-2">
-        <span className="font-mono text-[10px] uppercase tracking-[0.14em] text-coal-500">capture</span>
+        <span className="font-mono text-[10px] uppercase tracking-[0.14em] text-coal-500">
+          capture
+        </span>
       </div>
 
       <div className="px-4 pb-3 space-y-3">

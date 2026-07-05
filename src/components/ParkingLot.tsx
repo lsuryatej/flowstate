@@ -52,7 +52,9 @@ function ParkingLot({ open, items, onPark, onClose, onCheck }: ParkingLotProps) 
   return (
     <div className="w-full">
       <div className="flex items-center justify-between px-4 pt-3 pb-2">
-        <span className="font-mono text-[10px] uppercase tracking-[0.14em] text-coal-500">parked</span>
+        <span className="font-mono text-[10px] uppercase tracking-[0.14em] text-coal-500">
+          parked
+        </span>
         {items.length > 0 && (
           <span className="font-mono text-[10px] tabular-nums text-coal-500">{items.length}</span>
         )}
@@ -77,7 +79,10 @@ function ParkingLot({ open, items, onPark, onClose, onCheck }: ParkingLotProps) 
         {sorted.length > 0 ? (
           <ul className="space-y-1.5 max-h-64 overflow-y-auto">
             {sorted.map((item) => (
-              <li key={item.id} className="flex items-start gap-2 border-b border-coal-800/60 pb-1.5 last:border-b-0 last:pb-0">
+              <li
+                key={item.id}
+                className="flex items-start gap-2 border-b border-coal-800/60 pb-1.5 last:border-b-0 last:pb-0"
+              >
                 {/* triage / can forget: a quiet checkbox, not a task completion */}
                 <input
                   type="checkbox"
@@ -99,7 +104,9 @@ function ParkingLot({ open, items, onPark, onClose, onCheck }: ParkingLotProps) 
                       "while:" so it reads as context, not a stray command */}
                   <div className="font-mono text-[11px] text-coal-600">
                     {item.task && (
-                      <span title="what was in focus when you parked this thought">while: {item.task} · </span>
+                      <span title="what was in focus when you parked this thought">
+                        while: {item.task} ·{' '}
+                      </span>
                     )}
                     {ago(item.ts)}
                   </div>

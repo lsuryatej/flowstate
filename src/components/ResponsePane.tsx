@@ -40,19 +40,25 @@ function FirstRun() {
       <p className="mb-6 text-lg text-coal-200">Point me at a repo, then make one move.</p>
       <ul className="space-y-3 text-sm text-coal-500">
         <li className="flex items-baseline gap-3">
-          <span className="w-24 shrink-0 font-mono text-[10px] uppercase tracking-[0.14em] text-coal-600">build</span>
+          <span className="w-24 shrink-0 font-mono text-[10px] uppercase tracking-[0.14em] text-coal-600">
+            build
+          </span>
           <span>
             type what you want changed, <Kbd>enter</Kbd> sends it
           </span>
         </li>
         <li className="flex items-baseline gap-3">
-          <span className="w-24 shrink-0 font-mono text-[10px] uppercase tracking-[0.14em] text-coal-600">plan</span>
+          <span className="w-24 shrink-0 font-mono text-[10px] uppercase tracking-[0.14em] text-coal-600">
+            plan
+          </span>
           <span>
             <Kbd>/plan a fuzzy goal</Kbd> becomes a checklist of 15-minute steps
           </span>
         </li>
         <li className="flex items-baseline gap-3">
-          <span className="w-24 shrink-0 font-mono text-[10px] uppercase tracking-[0.14em] text-coal-600">park</span>
+          <span className="w-24 shrink-0 font-mono text-[10px] uppercase tracking-[0.14em] text-coal-600">
+            park
+          </span>
           <span>
             <Kbd>&#8984;J</Kbd> captures a stray thought without switching threads
           </span>
@@ -67,7 +73,9 @@ function ResponsePane({ chat, arriving, lastResult, error }: ResponsePaneProps) 
   // The result summary is a recap, not the answer — the user often wants it
   // out of the way. Collapse is a preference: once folded it stays folded
   // across turns (persisted), so the reading column stays clean by default.
-  const [resultCollapsed, setResultCollapsed] = useState(() => localStorage.getItem('fs.resultCollapsed') === 'yes');
+  const [resultCollapsed, setResultCollapsed] = useState(
+    () => localStorage.getItem('fs.resultCollapsed') === 'yes',
+  );
   const toggleResult = () => {
     setResultCollapsed((v) => {
       const next = !v;
@@ -83,7 +91,9 @@ function ResponsePane({ chat, arriving, lastResult, error }: ResponsePaneProps) 
   }, [chat]);
 
   return (
-    <div className={`relative flex min-h-0 flex-1 flex-col overflow-hidden rounded-lg ${arriving ? 'fs-arrive' : ''}`}>
+    <div
+      className={`relative flex min-h-0 flex-1 flex-col overflow-hidden rounded-lg ${arriving ? 'fs-arrive' : ''}`}
+    >
       <div ref={scrollRef} className="min-h-0 flex-1 space-y-4 overflow-y-auto px-1 py-4">
         <div className="mx-auto h-full w-full max-w-[68ch]">
           {chat.length === 0 ? (
@@ -123,9 +133,7 @@ function ResponsePane({ chat, arriving, lastResult, error }: ResponsePaneProps) 
         </div>
       </div>
 
-      {error && (
-        <div className="fs-hairline-t px-4 py-2 text-xs text-ember-400/80">{error}</div>
-      )}
+      {error && <div className="fs-hairline-t px-4 py-2 text-xs text-ember-400/80">{error}</div>}
 
       {lastResult && (
         <div className="fs-hairline-t px-4 py-2">

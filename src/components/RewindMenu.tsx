@@ -56,7 +56,15 @@ function RewindMenu({ checkpoints, rewindResult, onRewind }: RewindMenuProps) {
         onClick={() => setOpen((v) => !v)}
         className="flex items-center gap-1 text-coal-600 transition-colors duration-200 hover:text-coal-300"
       >
-        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
+        <svg
+          width="12"
+          height="12"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          strokeWidth="2"
+          strokeLinecap="round"
+        >
           <path d="M3 12a9 9 0 1 0 3-6.7" />
           <path d="M3 4v5h5" />
         </svg>
@@ -65,7 +73,9 @@ function RewindMenu({ checkpoints, rewindResult, onRewind }: RewindMenuProps) {
 
       {rewindResult && (
         <span className={`ml-2 ${rewindResult.ok ? 'text-coal-500' : 'text-ember-400/80'}`}>
-          {rewindResult.ok ? `rewound · ${rewindResult.filesChanged} files restored` : `couldn't rewind — ${rewindResult.error}`}
+          {rewindResult.ok
+            ? `rewound · ${rewindResult.filesChanged} files restored`
+            : `couldn't rewind — ${rewindResult.error}`}
         </span>
       )}
 
@@ -76,7 +86,9 @@ function RewindMenu({ checkpoints, rewindResult, onRewind }: RewindMenuProps) {
               {armedId === cp.id ? (
                 <div>
                   <p className="text-coal-300">restore files + chat to before this?</p>
-                  <p className="mt-0.5 text-[10px] text-coal-600">nothing is deleted — the current version stays on disk</p>
+                  <p className="mt-0.5 text-[10px] text-coal-600">
+                    nothing is deleted — the current version stays on disk
+                  </p>
                   <div className="mt-1.5 flex items-center justify-end gap-1.5">
                     <button
                       type="button"

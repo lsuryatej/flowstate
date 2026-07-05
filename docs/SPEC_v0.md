@@ -47,16 +47,17 @@ and emit only that toward the webview (via Rust). If the SDK changes, you fix on
 // shared/uiEvents.ts — the ONLY contract the webview knows about
 export type UiEvent =
   | { t: 'session_started'; sessionId: string }
-  | { t: 'assistant_text'; delta: string }          // streamed text chunk
-  | { t: 'tool_started'; tool: string; summary: string }  // e.g. "Grep", "searching auth.ts"
+  | { t: 'assistant_text'; delta: string } // streamed text chunk
+  | { t: 'tool_started'; tool: string; summary: string } // e.g. "Grep", "searching auth.ts"
   | { t: 'tool_finished'; tool: string; ok: boolean }
-  | { t: 'agent_working' }        // ENTER dead zone  (fire on first thinking/tool activity of a turn)
-  | { t: 'agent_idle' }           // EXIT  dead zone  (fire on Stop / turn complete)
+  | { t: 'agent_working' } // ENTER dead zone  (fire on first thinking/tool activity of a turn)
+  | { t: 'agent_idle' } // EXIT  dead zone  (fire on Stop / turn complete)
   | { t: 'result'; ok: boolean; summary: string }
   | { t: 'error'; message: string };
 ```
 
 Sidecar mapping (names to verify against installed SDK):
+
 - init/system message with session id -> `session_started`
 - assistant message text deltas -> `assistant_text`
 - tool-use start (PreToolUse or assistant tool_use block) -> `tool_started` (+ derive a
@@ -67,10 +68,12 @@ Sidecar mapping (names to verify against installed SDK):
 - any error arm -> `error`
 
 State machine for working/idle (keep it dead simple, one boolean + a debounce):
+
 ```
 idle --(first activity in turn)--> working   // emit agent_working
 working --(Stop)--> idle                      // emit agent_idle
 ```
+
 Debounce `agent_working` by ~400ms: if a turn resolves faster than that, never enter
 the dead zone at all (no point flashing a game for a 300ms reply). This threshold is
 the difference between "helpful" and "seizure-inducing." Tune it live.
@@ -190,6 +193,7 @@ Note: `/shared/uiEvents.ts` is imported by both the React side and the Node side
 so keep it dependency-free (types + plain constants only).
 
 ## 8. Build order (do not reorder)
+
 0. Skeleton: bare Tauri app that spawns the Node sidecar, sidecar prints a hardcoded
    `UiEvent` to stdout, Rust forwards it, React logs it. Prove the three-layer pipe
    (webview <-> Rust <-> sidecar) end to end with ONE fake event before anything real.
@@ -203,6 +207,7 @@ so keep it dependency-free (types + plain constants only).
 6. Run PROJECT.md success test. Stop. Show me.
 
 ## 9. Known traps (from research, don't relearn these)
+
 - Streaming JSON can arrive as partial/malformed chunks; guard your parse, don't
   crash the sidecar pipe on one bad frame. Buffer stdout by newline before parsing.
 - Don't enter the dead zone on sub-400ms turns (section 1 debounce).
@@ -216,7 +221,11 @@ so keep it dependency-free (types + plain constants only).
   the CLI and make sure the bundle satisfies it, or first run fails on a clean machine.
 
 ## 10. Out of scope for v0 (say no if asked)
+
 Next-task engine, decomposer, parking lot, context-recovery card, accounts, DB,
 streaks/levels/themes, body-double presence, prediction game, energy modes, multiple
 games. All v1+. See REQUIREMENTS.md.
+
+```
+
 ```

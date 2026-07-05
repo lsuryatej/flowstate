@@ -12,7 +12,14 @@ const OPTIONS: { mode: FillerMode; label: string }[] = [
 
 function SpeakerOnIcon() {
   return (
-    <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" strokeWidth="1.5">
+    <svg
+      viewBox="0 0 24 24"
+      width="14"
+      height="14"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="1.5"
+    >
       <path d="M4 9v6h4l5 4V5L8 9H4z" strokeLinejoin="round" />
       <path d="M16.5 9a4.5 4.5 0 0 1 0 6" strokeLinecap="round" />
       <path d="M19 6.5a8 8 0 0 1 0 11" strokeLinecap="round" />
@@ -22,7 +29,14 @@ function SpeakerOnIcon() {
 
 function SpeakerOffIcon() {
   return (
-    <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" strokeWidth="1.5">
+    <svg
+      viewBox="0 0 24 24"
+      width="14"
+      height="14"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="1.5"
+    >
       <path d="M4 9v6h4l5 4V5L8 9H4z" strokeLinejoin="round" />
       <path d="M16 9l5 6" strokeLinecap="round" />
       <path d="M21 9l-5 6" strokeLinecap="round" />

@@ -27,7 +27,14 @@ function summarizeTool(name: string, input: unknown): string {
   if (!input || typeof input !== 'object') return name;
   const args = input as Record<string, unknown>;
   const meaningful =
-    args.file_path ?? args.path ?? args.pattern ?? args.command ?? args.query ?? args.url ?? args.description ?? args.prompt;
+    args.file_path ??
+    args.path ??
+    args.pattern ??
+    args.command ??
+    args.query ??
+    args.url ??
+    args.description ??
+    args.prompt;
   if (typeof meaningful !== 'string' || meaningful.length === 0) return name;
   return truncate(meaningful.replace(/\s+/g, ' '), 90);
 }
@@ -56,7 +63,8 @@ function promptText(content: unknown): string | null {
       if (b && typeof b === 'object' && (b as { type?: string }).type === 'text') {
         return (b as { text: string }).text;
       }
-      if (b && typeof b === 'object' && (b as { type?: string }).type === 'tool_result') return null; // tool frame, not a prompt
+      if (b && typeof b === 'object' && (b as { type?: string }).type === 'tool_result')
+        return null; // tool frame, not a prompt
     }
   }
   return null;
@@ -92,7 +100,10 @@ export class Normalizer {
           if (msg.state === 'running') this.enterWorking(out);
           else if (msg.state === 'idle') this.exitWorking(out);
           else if (msg.state === 'requires_action') {
-            out.push({ t: 'agent_needs_input', reason: 'agent is waiting on you (permission or input)' });
+            out.push({
+              t: 'agent_needs_input',
+              reason: 'agent is waiting on you (permission or input)',
+            });
           }
         } else if (msg.subtype === 'compact_boundary') {
           // v4: context was tidied (auto near the limit, or manual /compact).
@@ -106,11 +117,13 @@ export class Normalizer {
           // v4: replace the cached slash-command list (init list goes stale).
           out.push({
             t: 'commands',
-            items: msg.commands.map((c: { name: string; description: string; argumentHint: string }) => ({
-              name: c.name,
-              description: c.description,
-              argumentHint: c.argumentHint,
-            })),
+            items: msg.commands.map(
+              (c: { name: string; description: string; argumentHint: string }) => ({
+                name: c.name,
+                description: c.description,
+                argumentHint: c.argumentHint,
+              }),
+            ),
           });
         } else if (msg.subtype === 'local_command_output') {
           out.push({ t: 'command_output', text: msg.content });
@@ -150,7 +163,11 @@ export class Normalizer {
                 continue;
               }
             }
-            out.push({ t: 'tool_started', tool: block.name, summary: summarizeTool(block.name, block.input) });
+            out.push({
+              t: 'tool_started',
+              tool: block.name,
+              summary: summarizeTool(block.name, block.input),
+            });
           }
         }
         break;
@@ -186,9 +203,15 @@ export class Normalizer {
       case 'result': {
         this.exitWorking(out);
         if (msg.subtype === 'success' && !msg.is_error) {
-          out.push({ t: 'result', ok: true, summary: truncate(msg.result, 200), xpTotal: addXp(1) });
+          out.push({
+            t: 'result',
+            ok: true,
+            summary: truncate(msg.result, 200),
+            xpTotal: addXp(1),
+          });
         } else {
-          const summary = msg.subtype === 'success' ? truncate(msg.result, 200) : `turn ended: ${msg.subtype}`;
+          const summary =
+            msg.subtype === 'success' ? truncate(msg.result, 200) : `turn ended: ${msg.subtype}`;
           out.push({ t: 'result', ok: false, summary, xpTotal: readXp() });
         }
         break;

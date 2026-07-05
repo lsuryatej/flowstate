@@ -10,7 +10,16 @@ import type { MemoryScope, UiEvent } from '../shared/uiEvents.js';
 
 const MAX_RESULTS = 20;
 const WALK_DEPTH = 4;
-const SKIP_DIRS = new Set(['node_modules', '.git', 'dist', 'build', 'target', '.next', '.venv', 'vendor']);
+const SKIP_DIRS = new Set([
+  'node_modules',
+  '.git',
+  'dist',
+  'build',
+  'target',
+  '.next',
+  '.venv',
+  'vendor',
+]);
 
 /** All tracked paths via git (fast, respects .gitignore); [] on failure. */
 function gitFiles(dir: string): Promise<string[]> {
@@ -75,7 +84,11 @@ function rankMatches(paths: string[], query: string): string[] {
 }
 
 /** v4 (#6): answer an @-mention lookup with repo-relative paths. */
-export async function listFiles(cwd: string | undefined, queryStr: string, emit: (e: UiEvent) => void): Promise<void> {
+export async function listFiles(
+  cwd: string | undefined,
+  queryStr: string,
+  emit: (e: UiEvent) => void,
+): Promise<void> {
   const dir = resolveCwd(cwd);
   if (!dir || !existsSync(dir)) {
     emit({ t: 'file_list', query: queryStr, items: [] });

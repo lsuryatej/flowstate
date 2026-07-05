@@ -57,9 +57,13 @@ mkdirSync(outDir, { recursive: true });
 // 1. Compile the sidecar to a self-contained Bun executable.
 const sidecarOut = join(outDir, `flowstate-sidecar-${triple}`);
 console.log(`[sidecar] compiling → ${sidecarOut}`);
-execFileSync('bun', ['build', join(root, 'sidecar', 'index.ts'), '--compile', '--outfile', sidecarOut], {
-  stdio: 'inherit',
-});
+execFileSync(
+  'bun',
+  ['build', join(root, 'sidecar', 'index.ts'), '--compile', '--outfile', sidecarOut],
+  {
+    stdio: 'inherit',
+  },
+);
 chmodSync(sidecarOut, 0o755);
 console.log(`[sidecar] ${human(statSync(sidecarOut).size)}`);
 

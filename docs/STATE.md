@@ -7,12 +7,15 @@
 > loses the exact position in the build. Keep it short: current facts, not narrative.
 
 ## Current phase
+
 v4 — terminal parity layer, CODE-COMPLETE (2026-07-05), awaiting live
 verification. (v1 also still awaits its live pass; v0 PASSED live 2026-07-02.)
 
 ## Last completed item
+
 v4 terminal-parity build (2026-07-05): 12 features closing the gap with
 Claude Code CLI, picked by Surya (tier A 1-7 + tier B 9,10,12,13,14):
+
 - Slash commands: supportedCommands()/commands_changed -> `commands` event;
   PromptBar popover menu (local /plan entry first); local_command_output
   renders as a chat block. Custom .claude/commands load via settingSources.
@@ -41,14 +44,15 @@ Claude Code CLI, picked by Surya (tier A 1-7 + tier B 9,10,12,13,14):
   backfillUpTo trims history. Generation counter silences the old pump.
 - WebSearch/WebFetch: nothing to enable — they flow through the existing
   permission UI.
-UI grunt work was 3 parallel Sonnet subagents (PromptBar; ThinkingBlock/
-AgentTodos/ContextMeter/ResponsePane; PermissionPrompt/PlanApprovalCard/
-RewindMenu/MemoryPanel); contract+sidecar spine and App.tsx wiring first-hand.
-Verified: tsc clean, vite build, cargo check, sidecar bundle, non-LLM
-handlers smoke-tested by piping frames (list_files/get_memory/save_memory/
-rewind guard all good), banned-palette grep clean on all touched components.
+  UI grunt work was 3 parallel Sonnet subagents (PromptBar; ThinkingBlock/
+  AgentTodos/ContextMeter/ResponsePane; PermissionPrompt/PlanApprovalCard/
+  RewindMenu/MemoryPanel); contract+sidecar spine and App.tsx wiring first-hand.
+  Verified: tsc clean, vite build, cargo check, sidecar bundle, non-LLM
+  handlers smoke-tested by piping frames (list_files/get_memory/save_memory/
+  rewind guard all good), banned-palette grep clean on all touched components.
 
 ## Prior completed item
+
 v1.1–v1.4 CODE-COMPLETE (2026-07-03): next-task engine, decomposer, parking
 lot, recovery card. New files: sidecar/utility.ts (one-shot no-tools Haiku
 query + JSON extraction), sidecar/exec.ts (all four features; LLM only in
@@ -57,12 +61,15 @@ TaskChecklist,ParkingLot,RecoveryCard}.tsx (Sonnet subagent). Contracts:
 5 new UiEvents + 5 ControlMsgs in shared/uiEvents.ts (snapshot events, never
 deltas). Rust got ONE generic send_control pass-through. Non-LLM handlers
 smoke-tested by piping frames into the built sidecar; typecheck + cargo check
-+ sidecar bundle all green.
+
+- sidecar bundle all green.
 
 ## In progress
+
 Nothing. v1 + the UI revamp + v4 await live in-app verification.
 
 ## UI system ("hearth", 2026-07-03)
+
 Full visual revamp. Tokens live in src/index.css `@theme`: warm graphite
 neutrals `coal-100…950` (OKLCH hue 72) + one accent `ember-300…600` meaning
 "agent alive / needs you / reward". Tailwind's DEFAULT PALETTE IS DISABLED
@@ -76,6 +83,7 @@ RecoveryCard is the app's ONLY elevated card (fs-raised + fs-settle-in).
 PRODUCT.md (register: product) added for the impeccable design skill.
 
 ## Next item (in build order)
+
 Live v1 verification in `bun run tauri dev` (unchanged: next-task banner,
 /plan checklist, ⌘J park, recovery card) PLUS live v4 verification:
 (a) type `/` → command menu (with /plan first), pick /cost → output block in
@@ -89,9 +97,11 @@ gains the rule, re-run doesn't ask; (h) send 2 prompts, rewind to the first
 Then STOP for green light.
 
 ## Known blockers
+
 - None. (Auth resolved 2026-07-02: key pasted in-app → keychain.)
 
 ## Decisions made this build (not yet promoted to a formal doc)
+
 - v4 (2026-07-05, Surya's calls): rewind = conversation + files (full
   checkpoint); hooks = respect-only, no editor UI; compaction = auto +
   quiet notify (SDK default auto-compact, no threshold UI); verification
@@ -164,6 +174,7 @@ Then STOP for green light.
   Rust host, state machine, and choreography were done first-hand.
 
 ## Drift check
+
 Code matches REQUIREMENTS.md v0 scope; no v1 items started. One DOC
 inconsistency (not code drift): REQUIREMENTS.md/ROADMAP.md cite IDEOLOGY laws
 13–14, but IDEOLOGY.md still ends at law 12. Flagged to Surya 2026-07-02.

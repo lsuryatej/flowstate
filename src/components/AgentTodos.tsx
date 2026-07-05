@@ -11,7 +11,9 @@ function StatusDot({ status }: { status: TodoItem['status'] }) {
     return <span className="inline-block h-1.5 w-1.5 shrink-0 rounded-full bg-coal-600" />;
   }
   if (status === 'in_progress') {
-    return <span className="fs-pulse-dot inline-block h-1.5 w-1.5 shrink-0 rounded-full bg-ember-400" />;
+    return (
+      <span className="fs-pulse-dot inline-block h-1.5 w-1.5 shrink-0 rounded-full bg-ember-400" />
+    );
   }
   return <span className="inline-block h-1.5 w-1.5 shrink-0 rounded-full border border-coal-700" />;
 }
@@ -21,7 +23,9 @@ function AgentTodos({ items }: AgentTodosProps) {
 
   return (
     <div className="px-4 py-2.5">
-      <p className="mb-1.5 font-mono text-[10px] uppercase tracking-[0.14em] text-coal-600">agent&apos;s plan</p>
+      <p className="mb-1.5 font-mono text-[10px] uppercase tracking-[0.14em] text-coal-600">
+        agent&apos;s plan
+      </p>
       <ul className="space-y-1">
         {items.map((item, i) => (
           <li key={i} className="flex items-baseline gap-2 text-xs">

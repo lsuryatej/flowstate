@@ -4,7 +4,11 @@
     "kind": "regex",
     "prompt": "What does /^\\d{3}-\\d{4}$/ match?",
     "code": "/^\\d{3}-\\d{4}$/",
-    "choices": ["A 7-digit phone suffix like 555-1234", "Any string containing digits", "A date like 03-2024"],
+    "choices": [
+      "A 7-digit phone suffix like 555-1234",
+      "Any string containing digits",
+      "A date like 03-2024"
+    ],
     "answerIndex": 0,
     "explanation": "Three digits, a literal dash, then four digits, anchored start to end."
   },
@@ -40,7 +44,11 @@
     "kind": "regex",
     "prompt": "In /a.+?b/, what does the ? after + do?",
     "code": "/a.+?b/",
-    "choices": ["Makes the quantifier lazy (shortest match)", "Makes 'b' optional", "Makes the match case-insensitive"],
+    "choices": [
+      "Makes the quantifier lazy (shortest match)",
+      "Makes 'b' optional",
+      "Makes the match case-insensitive"
+    ],
     "answerIndex": 0,
     "explanation": "A quantifier followed by ? becomes lazy, matching as few characters as possible."
   },
@@ -49,7 +57,11 @@
     "kind": "regex",
     "prompt": "What does /^[A-Z]/ check?",
     "code": "/^[A-Z]/",
-    "choices": ["String starts with an uppercase letter", "String contains any letter", "String is all uppercase"],
+    "choices": [
+      "String starts with an uppercase letter",
+      "String contains any letter",
+      "String is all uppercase"
+    ],
     "answerIndex": 0,
     "explanation": "The caret anchors to the start and the class matches one uppercase letter there."
   },
@@ -58,7 +70,11 @@
     "kind": "regex",
     "prompt": "What does \\b in /\\bcat\\b/ do?",
     "code": "/\\bcat\\b/",
-    "choices": ["Asserts a word boundary around 'cat'", "Matches a literal backslash", "Matches the start of the string"],
+    "choices": [
+      "Asserts a word boundary around 'cat'",
+      "Matches a literal backslash",
+      "Matches the start of the string"
+    ],
     "answerIndex": 0,
     "explanation": "\\b matches the position between a word character and a non-word character."
   },
@@ -76,7 +92,11 @@
     "kind": "regex",
     "prompt": "What does /gi at the end of a JS regex literal mean?",
     "code": "/foo/gi",
-    "choices": ["Global and case-insensitive matching", "Greedy and infinite matching", "Group and index matching"],
+    "choices": [
+      "Global and case-insensitive matching",
+      "Greedy and infinite matching",
+      "Group and index matching"
+    ],
     "answerIndex": 0,
     "explanation": "g finds all matches, i ignores case."
   },
@@ -121,7 +141,11 @@
     "kind": "regex",
     "prompt": "What does /cat|dog/ match?",
     "code": "/cat|dog/",
-    "choices": ["Either 'cat' or 'dog'", "The literal string 'cat|dog'", "Strings containing both 'cat' and 'dog'"],
+    "choices": [
+      "Either 'cat' or 'dog'",
+      "The literal string 'cat|dog'",
+      "Strings containing both 'cat' and 'dog'"
+    ],
     "answerIndex": 0,
     "explanation": "The pipe is alternation, matching one side or the other."
   },
@@ -130,7 +154,11 @@
     "kind": "regex",
     "prompt": "What does the 'm' flag change in /^foo/m?",
     "code": "/^foo/m",
-    "choices": ["^ and $ match at line boundaries, not just string boundaries", "Makes matching case-insensitive", "Matches multiple occurrences instead of one"],
+    "choices": [
+      "^ and $ match at line boundaries, not just string boundaries",
+      "Makes matching case-insensitive",
+      "Matches multiple occurrences instead of one"
+    ],
     "answerIndex": 0,
     "explanation": "The multiline flag lets anchors match at each newline."
   },
@@ -139,7 +167,11 @@
     "kind": "regex",
     "prompt": "What does \\w+ match?",
     "code": "/\\w+/",
-    "choices": ["One or more word characters (letters, digits, underscore)", "One or more whitespace characters", "Exactly one letter"],
+    "choices": [
+      "One or more word characters (letters, digits, underscore)",
+      "One or more whitespace characters",
+      "Exactly one letter"
+    ],
     "answerIndex": 0,
     "explanation": "\\w covers [A-Za-z0-9_], and + requires at least one."
   },
@@ -148,7 +180,11 @@
     "kind": "regex",
     "prompt": "What does /a{3}/ match?",
     "code": "/a{3}/",
-    "choices": ["Exactly three 'a' characters in a row", "At least 3 characters", "'a' followed by the digit 3"],
+    "choices": [
+      "Exactly three 'a' characters in a row",
+      "At least 3 characters",
+      "'a' followed by the digit 3"
+    ],
     "answerIndex": 0,
     "explanation": "A single number in braces means an exact repetition count."
   },
@@ -229,7 +265,11 @@
     "kind": "bug",
     "prompt": "What's the bug here?",
     "code": "function sum(arr) {\n  let total;\n  for (const n of arr) total += n;\n  return total;\n}",
-    "choices": ["total starts as undefined, so total += n yields NaN", "for...of cannot iterate arrays", "return must be inside the loop"],
+    "choices": [
+      "total starts as undefined, so total += n yields NaN",
+      "for...of cannot iterate arrays",
+      "return must be inside the loop"
+    ],
     "answerIndex": 0,
     "explanation": "Adding a number to undefined produces NaN, so total should start at 0."
   },
@@ -292,7 +332,11 @@
     "kind": "bug",
     "prompt": "What's the bug here?",
     "code": "const items = [1, 2, 3];\nitems.forEach(n => {\n  if (n === 2) return;\n});\nconsole.log('done');",
-    "choices": ["Nothing is actually broken, return just skips one callback", "forEach cannot be stopped with return", "console.log runs before the loop finishes"],
+    "choices": [
+      "Nothing is actually broken, return just skips one callback",
+      "forEach cannot be stopped with return",
+      "console.log runs before the loop finishes"
+    ],
     "answerIndex": 0,
     "explanation": "This is a common misread, not a bug: return inside forEach only exits that single callback, it does not break the loop."
   },
@@ -301,7 +345,11 @@
     "kind": "bug",
     "prompt": "What's the bug here?",
     "code": "function greet(name) {\n  console.log(\"Hi \" + Name);\n}\ngreet(\"Sam\");",
-    "choices": ["Name is capitalized and was never declared", "greet is missing a return statement", "String concatenation with + is invalid"],
+    "choices": [
+      "Name is capitalized and was never declared",
+      "greet is missing a return statement",
+      "String concatenation with + is invalid"
+    ],
     "answerIndex": 0,
     "explanation": "JavaScript is case-sensitive, so Name refers to an undeclared variable, not the name parameter."
   },
@@ -319,7 +367,11 @@
     "kind": "bug",
     "prompt": "What's the bug here?",
     "code": "def get_first(items):\n    if items == None:\n        return None\n    return items[0]",
-    "choices": ["Should use 'is None', not '== None' (style, though it usually works)", "items[0] is invalid Python syntax", "The function is missing a colon"],
+    "choices": [
+      "Should use 'is None', not '== None' (style, though it usually works)",
+      "items[0] is invalid Python syntax",
+      "The function is missing a colon"
+    ],
     "answerIndex": 0,
     "explanation": "PEP 8 says identity checks against None should use 'is', since a custom __eq__ could break '=='."
   },
@@ -328,7 +380,11 @@
     "kind": "bug",
     "prompt": "What's the bug here?",
     "code": "const nums = [1, 2, 3];\nconst doubled = nums.map(n => { n * 2; });\nconsole.log(doubled);",
-    "choices": ["The arrow function body has braces but no explicit return", "map() does not exist on arrays", "nums must be declared with let"],
+    "choices": [
+      "The arrow function body has braces but no explicit return",
+      "map() does not exist on arrays",
+      "nums must be declared with let"
+    ],
     "answerIndex": 0,
     "explanation": "Braces switch the arrow function to a block body, so it needs an explicit return or it yields undefined."
   },
@@ -337,7 +393,11 @@
     "kind": "bug",
     "prompt": "What's the bug here?",
     "code": "function isAdult(age) {\n  if (age >= 18);\n  return true;\n  return false;\n}",
-    "choices": ["Stray semicolon after the if makes it always run 'return true'", "age needs to be parsed as a number first", "Functions cannot have two return statements"],
+    "choices": [
+      "Stray semicolon after the if makes it always run 'return true'",
+      "age needs to be parsed as a number first",
+      "Functions cannot have two return statements"
+    ],
     "answerIndex": 0,
     "explanation": "The semicolon ends the if statement with an empty body, so 'return true' always executes regardless of age."
   },
@@ -355,7 +415,11 @@
     "kind": "bug",
     "prompt": "What's the bug here?",
     "code": "class Counter {\n  count = 0;\n  increment() {\n    count = count + 1;\n  }\n}",
-    "choices": ["Missing 'this.' before count inside increment", "class fields cannot have default values", "increment must be static"],
+    "choices": [
+      "Missing 'this.' before count inside increment",
+      "class fields cannot have default values",
+      "increment must be static"
+    ],
     "answerIndex": 0,
     "explanation": "Without this.count, the method references an undeclared global instead of the instance field."
   },
@@ -373,7 +437,11 @@
     "kind": "bug",
     "prompt": "Which line has the bug?",
     "code": "function double(n) {\n  n = n * 2;\n}\nconsole.log(double(5));",
-    "choices": ["Line 2: the doubled value is never returned", "Line 1: function should take two arguments", "Line 4: console.log cannot call a function"],
+    "choices": [
+      "Line 2: the doubled value is never returned",
+      "Line 1: function should take two arguments",
+      "Line 4: console.log cannot call a function"
+    ],
     "answerIndex": 0,
     "explanation": "Without a return statement the function implicitly returns undefined."
   },
@@ -382,7 +450,11 @@
     "kind": "bug",
     "prompt": "What's the bug here?",
     "code": "def add_item(item, items=[]):\n    items.append(item)\n    return items",
-    "choices": ["The mutable default list is shared across calls", "append() doesn't exist on lists", "items should be a tuple"],
+    "choices": [
+      "The mutable default list is shared across calls",
+      "append() doesn't exist on lists",
+      "items should be a tuple"
+    ],
     "answerIndex": 0,
     "explanation": "Default arguments are evaluated once, so the same list persists between calls."
   },
@@ -391,7 +463,11 @@
     "kind": "bug",
     "prompt": "Which line has the bug?",
     "code": "for (var i = 0; i < 3; i++) {\n  setTimeout(() => console.log(i), 0);\n}\n// expected: 0 1 2, got: 3 3 3",
-    "choices": ["Line 1: var is function-scoped so all callbacks share the same i", "Line 2: setTimeout cannot take an arrow function", "Line 1: the loop condition is off by one"],
+    "choices": [
+      "Line 1: var is function-scoped so all callbacks share the same i",
+      "Line 2: setTimeout cannot take an arrow function",
+      "Line 1: the loop condition is off by one"
+    ],
     "answerIndex": 0,
     "explanation": "var leaks out of the loop block, so every closure sees the final value of i."
   },
@@ -400,7 +476,11 @@
     "kind": "bug",
     "prompt": "What's the bug in this comparison?",
     "code": "const a = { x: 1 };\nconst b = { x: 1 };\nconsole.log(a === b);",
-    "choices": ["Objects compare by reference, not by contents, so this is false", "=== is invalid for objects", "This throws a TypeError"],
+    "choices": [
+      "Objects compare by reference, not by contents, so this is false",
+      "=== is invalid for objects",
+      "This throws a TypeError"
+    ],
     "answerIndex": 0,
     "explanation": "Two distinct object literals are never === even with identical contents."
   },
@@ -409,7 +489,11 @@
     "kind": "bug",
     "prompt": "Which line has the bug?",
     "code": "function checkRole(id) {\n  if (id = 5) {\n    return \"admin\";\n  }\n  return \"guest\";\n}",
-    "choices": ["Line 2: = assigns instead of comparing with ==", "Line 1: function is missing a return type", "Line 3: return needs a semicolon"],
+    "choices": [
+      "Line 2: = assigns instead of comparing with ==",
+      "Line 1: function is missing a return type",
+      "Line 3: return needs a semicolon"
+    ],
     "answerIndex": 0,
     "explanation": "Single = assigns 5 to id and the truthy result always takes the admin branch."
   },
@@ -418,7 +502,11 @@
     "kind": "bug",
     "prompt": "What's the bug here?",
     "code": "async function getData() {\n  const res = fetch('/api/data');\n  return res.json();\n}",
-    "choices": ["Missing await before fetch, so res is a Promise not a Response", "fetch requires two arguments", "async functions can't return"],
+    "choices": [
+      "Missing await before fetch, so res is a Promise not a Response",
+      "fetch requires two arguments",
+      "async functions can't return"
+    ],
     "answerIndex": 0,
     "explanation": "Without await, res.json() is called on a pending Promise instead of the response."
   },
@@ -427,7 +515,11 @@
     "kind": "bug",
     "prompt": "Which line has the bug?",
     "code": "let total = 0;\nfor (let i = 0; i <= arr.length; i++) {\n  total += arr[i];\n}",
-    "choices": ["Line 2: <= should be < to avoid reading past the last index", "Line 1: total should start at 1", "Line 3: += is invalid syntax"],
+    "choices": [
+      "Line 2: <= should be < to avoid reading past the last index",
+      "Line 1: total should start at 1",
+      "Line 3: += is invalid syntax"
+    ],
     "answerIndex": 0,
     "explanation": "Using <= runs the loop one time too many, reading arr[arr.length] which is undefined."
   },
@@ -436,7 +528,11 @@
     "kind": "bug",
     "prompt": "What's the bug in this check?",
     "code": "function isEmpty(str) {\n  if (str == null || str.length = 0) {\n    return true;\n  }\n}",
-    "choices": ["str.length = 0 assigns instead of comparing", "str == null should be str === undefined", "The function never runs"],
+    "choices": [
+      "str.length = 0 assigns instead of comparing",
+      "str == null should be str === undefined",
+      "The function never runs"
+    ],
     "answerIndex": 0,
     "explanation": "A single = assigns 0 to length instead of checking equality, and would throw since length is read-only."
   },
@@ -445,7 +541,11 @@
     "kind": "bug",
     "prompt": "Which line has the bug?",
     "code": "try {\n  riskyCall();\n} catch (e) {\n}\nconsole.log('done');",
-    "choices": ["Line 3: the error is silently swallowed with no handling", "Line 1: try requires a finally block", "Line 4: console.log cannot run after a catch"],
+    "choices": [
+      "Line 3: the error is silently swallowed with no handling",
+      "Line 1: try requires a finally block",
+      "Line 4: console.log cannot run after a catch"
+    ],
     "answerIndex": 0,
     "explanation": "An empty catch block hides failures instead of logging or handling them."
   }

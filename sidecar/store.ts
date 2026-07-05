@@ -26,7 +26,11 @@ let activeSlug = '_default';
 function slugFor(cwd: string | undefined): string {
   const s = (cwd ?? '').trim();
   if (!s) return '_default';
-  const slug = s.replace(/[^a-zA-Z0-9]+/g, '-').replace(/^-+|-+$/g, '').toLowerCase().slice(0, 120);
+  const slug = s
+    .replace(/[^a-zA-Z0-9]+/g, '-')
+    .replace(/^-+|-+$/g, '')
+    .toLowerCase()
+    .slice(0, 120);
   return slug || '_default';
 }
 
@@ -111,7 +115,10 @@ export function readRecentProjects(): RecentProject[] {
     .slice(0, 12)
     .map((p) => {
       // read the project's position.json directly by slug, without disturbing activeSlug
-      const pos = readJson<Partial<Position>>(join(dataDir, 'projects', p.slug, 'position.json'), {});
+      const pos = readJson<Partial<Position>>(
+        join(dataDir, 'projects', p.slug, 'position.json'),
+        {},
+      );
       return { cwd: p.cwd, lastPrompt: pos.lastPrompt ?? '', lastSeen: p.lastSeen };
     });
 }
@@ -182,7 +189,13 @@ export interface Position {
   ts: number; // epoch ms of the last update
 }
 
-const EMPTY_POSITION: Position = { lastPrompt: '', lastResult: '', lastOk: true, needsInput: '', ts: 0 };
+const EMPTY_POSITION: Position = {
+  lastPrompt: '',
+  lastResult: '',
+  lastOk: true,
+  needsInput: '',
+  ts: 0,
+};
 
 export function readPosition(): Position {
   return { ...EMPTY_POSITION, ...readJson<Partial<Position>>(pPath('position.json'), {}) };

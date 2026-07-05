@@ -29,7 +29,9 @@ function pickNextIndex(currentIndex: number): number {
 }
 
 function DeadZone({ active }: DeadZoneGameProps) {
-  const [questionIndex, setQuestionIndex] = useState(() => Math.floor(Math.random() * QUESTIONS.length));
+  const [questionIndex, setQuestionIndex] = useState(() =>
+    Math.floor(Math.random() * QUESTIONS.length),
+  );
   const [selected, setSelected] = useState<number | null>(null);
   const [score, setScore] = useState(0);
   const advanceTimeout = useRef<number | null>(null);
@@ -82,11 +84,15 @@ function DeadZone({ active }: DeadZoneGameProps) {
   return (
     <div className="relative">
       <div className="flex items-center justify-between px-4 pt-3 pb-2">
-        <span className="font-mono text-[10px] uppercase tracking-[0.14em] text-coal-500">breather</span>
+        <span className="font-mono text-[10px] uppercase tracking-[0.14em] text-coal-500">
+          breather
+        </span>
       </div>
 
       <div className="px-4 pb-3 relative">
-        <span className="absolute top-0 right-3 font-mono text-[11px] text-coal-600">{score} pts</span>
+        <span className="absolute top-0 right-3 font-mono text-[11px] text-coal-600">
+          {score} pts
+        </span>
 
         <p className="text-xs text-coal-500 mb-2 pr-12">{question.prompt}</p>
 
@@ -104,7 +110,8 @@ function DeadZone({ active }: DeadZoneGameProps) {
 
             let stateClasses = 'border-coal-800 text-coal-400 hover:border-coal-700';
             if (revealed && isAnswer) stateClasses = 'border-ember-600/50 text-ember-400/80';
-            else if (revealed && isPicked && !isAnswer) stateClasses = 'border-ember-600/40 text-ember-400/70';
+            else if (revealed && isPicked && !isAnswer)
+              stateClasses = 'border-ember-600/40 text-ember-400/70';
             else if (revealed) stateClasses = 'border-coal-800 text-coal-600';
 
             return (

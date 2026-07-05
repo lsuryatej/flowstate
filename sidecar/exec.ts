@@ -40,7 +40,10 @@ function readRepoState(cwd?: string): string {
 
 // v1.1 — pick ONE task, one line, one reason. Deterministic fallbacks first;
 // the LLM only breaks ties when there is real state to read.
-export async function suggestNextTask(cwd: string | undefined, emit: (e: UiEvent) => void): Promise<void> {
+export async function suggestNextTask(
+  cwd: string | undefined,
+  emit: (e: UiEvent) => void,
+): Promise<void> {
   const plan = readPlan();
   const firstOpen = plan.items.find((i) => !i.done);
   const repoState = readRepoState(cwd);
@@ -50,7 +53,11 @@ export async function suggestNextTask(cwd: string | undefined, emit: (e: UiEvent
     return;
   }
   if (!repoState && !firstOpen) {
-    emit({ t: 'next_task', task: 'Decompose a goal to get started', reason: 'no plan and no STATE.md found in the repo' });
+    emit({
+      t: 'next_task',
+      task: 'Decompose a goal to get started',
+      reason: 'no plan and no STATE.md found in the repo',
+    });
     return;
   }
 
@@ -71,18 +78,29 @@ export async function suggestNextTask(cwd: string | undefined, emit: (e: UiEvent
 }
 
 // v1.2 — fuzzy goal -> <=15-min checklist chunks.
-export async function decompose(goal: string, cwd: string | undefined, emit: (e: UiEvent) => void): Promise<void> {
+export async function decompose(
+  goal: string,
+  cwd: string | undefined,
+  emit: (e: UiEvent) => void,
+): Promise<void> {
   const repoState = readRepoState(cwd);
   const out = await utilityQuery(
     `Break a fuzzy dev goal into 3-8 atomic tasks, each completable in under 15 minutes by one person, each starting with a verb, each independently checkable. Answer with strict JSON only: {"tasks": ["...", "..."]}. No markdown, no extra keys.\n\nGoal: ${goal}${repoState ? `\n\nProject state for context:\n${repoState}` : ''}`,
   );
   const parsed = extractJson<{ tasks?: unknown[] }>(out);
-  const texts = (parsed?.tasks ?? []).filter((t): t is string => typeof t === 'string' && t.trim().length > 0);
+  const texts = (parsed?.tasks ?? []).filter(
+    (t): t is string => typeof t === 'string' && t.trim().length > 0,
+  );
   if (texts.length === 0) {
-    emit({ t: 'error', message: 'decomposer got no usable checklist; rephrase the goal and try again' });
+    emit({
+      t: 'error',
+      message: 'decomposer got no usable checklist; rephrase the goal and try again',
+    });
     return;
   }
-  const items: PlanItem[] = texts.slice(0, 15).map((text) => ({ id: randomUUID(), text, done: false }));
+  const items: PlanItem[] = texts
+    .slice(0, 15)
+    .map((text) => ({ id: randomUUID(), text, done: false }));
   writePlan({ goal, items });
   emit({ t: 'plan', goal, items });
 }
@@ -134,7 +152,12 @@ export function emitRecovery(emit: (e: UiEvent) => void): void {
       : 'type a goal to decompose, or a prompt to start';
   const blocked = pos.needsInput || '';
 
-  emit({ t: 'recovery', where: truncateLine(where), next: truncateLine(next), blocked: truncateLine(blocked) });
+  emit({
+    t: 'recovery',
+    where: truncateLine(where),
+    next: truncateLine(next),
+    blocked: truncateLine(blocked),
+  });
   // Snapshots so a rebooted webview repopulates its panels alongside the card.
   emit({ t: 'plan', goal: plan.goal, items: plan.items });
   emit({ t: 'parking_lot', items: readParkingLot() });

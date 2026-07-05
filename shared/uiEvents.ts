@@ -128,7 +128,10 @@ export type UiEvent =
   | { t: 'resumed'; sessionId: string } // a prior session was resumed
   | { t: 'auth_status'; method: 'subscription' | 'api_key' | 'none'; email?: string; plan?: string } // surfaced after the session initializes
   | { t: 'recent_projects'; items: { cwd: string; lastPrompt: string; lastSeen: number }[] } // the "where was I" list
-  | { t: 'session_list'; items: { sessionId: string; summary: string; lastModified: number; firstPrompt?: string }[] } // past sessions for the active repo
+  | {
+      t: 'session_list';
+      items: { sessionId: string; summary: string; lastModified: number; firstPrompt?: string }[];
+    } // past sessions for the active repo
   // ---- v4 (terminal parity: commands, thinking, todos, context, rewind, memory) ----
   | { t: 'commands'; items: CommandInfo[] } // full snapshot of available slash commands (session init + commands_changed)
   | { t: 'command_output'; text: string } // a local slash command (e.g. /compact, /cost) printed output

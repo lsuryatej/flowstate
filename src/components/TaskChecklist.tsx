@@ -16,9 +16,12 @@ function TaskChecklist({ goal, items, onCheck }: TaskChecklistProps) {
   return (
     <div>
       <div className="flex items-center justify-between px-4 pt-3 pb-2">
-        <span className="font-mono text-[10px] uppercase tracking-[0.14em] text-coal-500">plan</span>
+        <span className="font-mono text-[10px] uppercase tracking-[0.14em] text-coal-500">
+          plan
+        </span>
         <span className="font-mono text-[10px] tabular-nums text-coal-500 shrink-0">
-          {doneCount > 0 ? <span className="text-ember-400">{doneCount}</span> : doneCount}/{items.length}
+          {doneCount > 0 ? <span className="text-ember-400">{doneCount}</span> : doneCount}/
+          {items.length}
         </span>
       </div>
 

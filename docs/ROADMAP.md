@@ -6,12 +6,12 @@
 
 ## Phase status
 
-| Phase | Status | Notes |
-|---|---|---|
-| Docs / spec (PROJECT, REQUIREMENTS, IDEOLOGY, SPEC_v0, STATE, ROADMAP) | done | Revised after Reddit field research (see below) |
-| v0 — prove the loop | done (live test passed 2026-07-02) | See REQUIREMENTS.md v0 items, SPEC_v0.md §8 build order |
-| v1 — executive-function layer | code-complete 2026-07-03, awaiting live verification | Next-task engine, decomposer, parking lot, context-recovery card |
-| v2 — reward layer, structured multi-track, hosted questions | blocked on v1 | Backlog only, do not build early |
+| Phase                                                                  | Status                                               | Notes                                                            |
+| ---------------------------------------------------------------------- | ---------------------------------------------------- | ---------------------------------------------------------------- |
+| Docs / spec (PROJECT, REQUIREMENTS, IDEOLOGY, SPEC_v0, STATE, ROADMAP) | done                                                 | Revised after Reddit field research (see below)                  |
+| v0 — prove the loop                                                    | done (live test passed 2026-07-02)                   | See REQUIREMENTS.md v0 items, SPEC_v0.md §8 build order          |
+| v1 — executive-function layer                                          | code-complete 2026-07-03, awaiting live verification | Next-task engine, decomposer, parking lot, context-recovery card |
+| v2 — reward layer, structured multi-track, hosted questions            | blocked on v1                                        | Backlog only, do not build early                                 |
 
 ## Major decisions locked in (don't re-litigate without flagging to Surya)
 

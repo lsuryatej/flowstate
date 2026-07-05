@@ -28,7 +28,10 @@ function XpCounter({ total, gained }: XpCounterProps) {
         xp <span className="text-coal-200">{total}</span>
       </span>
       {tick && (
-        <span key={tick.key} className="fs-xp-tick pointer-events-none absolute left-1/2 -top-1 text-ember-400">
+        <span
+          key={tick.key}
+          className="fs-xp-tick pointer-events-none absolute left-1/2 -top-1 text-ember-400"
+        >
           +{tick.amount}
         </span>
       )}

@@ -59,7 +59,14 @@ function mergeAttachments(existing: string[], added: string[]): string[] {
   return merged.slice(0, MAX_ATTACHMENTS);
 }
 
-function PromptBar({ working, onSend, onInterrupt, commands, fileList, onQueryFiles }: PromptBarProps) {
+function PromptBar({
+  working,
+  onSend,
+  onInterrupt,
+  commands,
+  fileList,
+  onQueryFiles,
+}: PromptBarProps) {
   const [text, setText] = useState('');
   const [focused, setFocused] = useState(false);
   const [attachments, setAttachments] = useState<string[]>([]);
@@ -89,7 +96,9 @@ function PromptBar({ working, onSend, onInterrupt, commands, fileList, onQueryFi
         .slice(0, MAX_MENU_ROWS)
     : [];
 
-  const mentionRows: string[] = mentionActive ? (fileList?.items ?? []).slice(0, MAX_MENU_ROWS) : [];
+  const mentionRows: string[] = mentionActive
+    ? (fileList?.items ?? []).slice(0, MAX_MENU_ROWS)
+    : [];
 
   const menuOpen = slashActive ? slashRows.length > 0 : mentionActive && mentionRows.length > 0;
 
@@ -271,7 +280,9 @@ function PromptBar({ working, onSend, onInterrupt, commands, fileList, onQueryFi
               }`}
             >
               <span className="truncate text-coal-600">{dirname(path)}</span>
-              <span className={i === selected ? 'text-ember-300' : 'text-coal-200'}>{basename(path)}</span>
+              <span className={i === selected ? 'text-ember-300' : 'text-coal-200'}>
+                {basename(path)}
+              </span>
             </button>
           ))}
         </div>
@@ -307,7 +318,14 @@ function PromptBar({ working, onSend, onInterrupt, commands, fileList, onQueryFi
             title="Attach files or images"
             className="flex h-8 w-8 items-center justify-center rounded-md text-coal-500 transition-colors duration-150 hover:bg-coal-850 hover:text-coal-300 active:scale-95"
           >
-            <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" strokeWidth="1.5">
+            <svg
+              viewBox="0 0 24 24"
+              width="15"
+              height="15"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="1.5"
+            >
               <path
                 d="M8 12.5V7a4 4 0 0 1 8 0v9a2.5 2.5 0 0 1-5 0V8.5a1 1 0 0 1 2 0V16"
                 strokeLinecap="round"
@@ -322,7 +340,14 @@ function PromptBar({ working, onSend, onInterrupt, commands, fileList, onQueryFi
             title="Capture a region screenshot"
             className="flex h-8 w-8 items-center justify-center rounded-md text-coal-500 transition-colors duration-150 hover:bg-coal-850 hover:text-coal-300 active:scale-95"
           >
-            <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" strokeWidth="1.5">
+            <svg
+              viewBox="0 0 24 24"
+              width="15"
+              height="15"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="1.5"
+            >
               <path
                 d="M4 8a2 2 0 0 1 2-2h1.2l.8-1.2A1.5 1.5 0 0 1 9.25 4h5.5a1.5 1.5 0 0 1 1.25.8L16.8 6H18a2 2 0 0 1 2 2v9a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V8z"
                 strokeLinejoin="round"
@@ -340,7 +365,9 @@ function PromptBar({ working, onSend, onInterrupt, commands, fileList, onQueryFi
           onPaste={handlePaste}
           onFocus={() => setFocused(true)}
           onBlur={() => setFocused(false)}
-          placeholder={working ? 'draft the next move while the agent works' : 'what next · /plan a goal'}
+          placeholder={
+            working ? 'draft the next move while the agent works' : 'what next · /plan a goal'
+          }
           rows={1}
         />
         {working ? (

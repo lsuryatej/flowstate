@@ -25,7 +25,8 @@ function CapturePill() {
     const mq = window.matchMedia('(prefers-color-scheme: dark)');
     const apply = () => {
       const stored = localStorage.getItem('fs.theme');
-      const resolved = stored === 'dark' || stored === 'light' ? stored : mq.matches ? 'dark' : 'light';
+      const resolved =
+        stored === 'dark' || stored === 'light' ? stored : mq.matches ? 'dark' : 'light';
       document.documentElement.dataset.theme = resolved;
     };
     apply();
@@ -92,7 +93,9 @@ function CapturePill() {
         autoFocus
         className="w-full bg-coal-900 border border-coal-800 rounded-xl px-4 py-3 text-sm text-coal-100 placeholder:text-coal-600 outline-none focus:border-ember-500/50"
       />
-      <div className="mt-1 px-1 font-mono text-[10px] text-coal-600">↵ park · ⌘↵ prompt · esc close</div>
+      <div className="mt-1 px-1 font-mono text-[10px] text-coal-600">
+        ↵ park · ⌘↵ prompt · esc close
+      </div>
     </div>
   );
 }

@@ -46,7 +46,15 @@ function EffortPicker({ value, onChange }: Props) {
         className="inline-flex items-center gap-1 rounded-md px-2 py-1 font-mono text-[11px] text-coal-400 outline-none transition-colors duration-150 hover:bg-coal-850 hover:text-coal-200 focus-visible:outline-2 focus-visible:outline-ember-500/60"
       >
         {EFFORT_LABELS[value]}
-        <svg viewBox="0 0 24 24" width="10" height="10" fill="none" stroke="currentColor" strokeWidth="2" className="text-coal-600">
+        <svg
+          viewBox="0 0 24 24"
+          width="10"
+          height="10"
+          fill="none"
+          stroke="currentColor"
+          strokeWidth="2"
+          className="text-coal-600"
+        >
           <path d="M6 9l6 6 6-6" strokeLinecap="round" strokeLinejoin="round" />
         </svg>
       </button>
@@ -87,7 +95,11 @@ function EffortPicker({ value, onChange }: Props) {
               aria-label="reasoning effort"
               aria-valuetext={EFFORT_LABELS[value]}
               className="fs-effort-range relative z-10 w-full"
-              style={{ '--fs-fill': `${(index / (EFFORT_LEVELS.length - 1)) * 100}%` } as React.CSSProperties}
+              style={
+                {
+                  '--fs-fill': `${(index / (EFFORT_LEVELS.length - 1)) * 100}%`,
+                } as React.CSSProperties
+              }
             />
           </div>
         </div>

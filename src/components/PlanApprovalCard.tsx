@@ -12,7 +12,9 @@ function PlanApprovalCard({ plan, onApprove, onKeepPlanning }: PlanApprovalCardP
       <div className="flex items-center justify-between gap-3">
         <div className="flex items-center gap-2">
           <span className="fs-pulse-dot inline-block h-1.5 w-1.5 shrink-0 rounded-full bg-ember-400" />
-          <span className="font-mono text-[10px] uppercase tracking-[0.14em] text-coal-600">plan ready</span>
+          <span className="font-mono text-[10px] uppercase tracking-[0.14em] text-coal-600">
+            plan ready
+          </span>
         </div>
         <span className="shrink-0 text-[11px] text-coal-600">approve to start building</span>
       </div>

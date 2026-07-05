@@ -13,7 +13,9 @@ interface NextTaskBannerProps {
 function NextTaskBanner({ task, reason, onAccept, onDismiss }: NextTaskBannerProps) {
   return (
     <div className="flex items-center gap-4 border-b border-coal-800/70 bg-coal-900/50 px-5 py-2.5 transition-all duration-300 ease-[cubic-bezier(0.16,1,0.3,1)]">
-      <span className="font-mono text-[10px] uppercase tracking-[0.14em] text-ember-500 shrink-0">next</span>
+      <span className="font-mono text-[10px] uppercase tracking-[0.14em] text-ember-500 shrink-0">
+        next
+      </span>
 
       <div className="flex-1 min-w-0">
         <div className="text-sm text-coal-100 truncate">{task}</div>

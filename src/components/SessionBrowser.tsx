@@ -66,7 +66,14 @@ function SessionBrowser({ items, activeSessionId, onOpen, onPick }: Props) {
         }}
         className="p-1 text-coal-600 transition-colors duration-200 hover:text-coal-300 active:scale-[0.98]"
       >
-        <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" strokeWidth="1.5">
+        <svg
+          viewBox="0 0 24 24"
+          width="14"
+          height="14"
+          fill="none"
+          stroke="currentColor"
+          strokeWidth="1.5"
+        >
           <path d="M4 7l8-3 8 3-8 3-8-3z" strokeLinecap="round" strokeLinejoin="round" />
           <path d="M4 12l8 3 8-3" strokeLinecap="round" strokeLinejoin="round" />
           <path d="M4 17l8 3 8-3" strokeLinecap="round" strokeLinejoin="round" />
@@ -98,16 +105,28 @@ function SessionBrowser({ items, activeSessionId, onOpen, onPick }: Props) {
                 >
                   <span className="mt-0.5 w-3 shrink-0">
                     {isActive && (
-                      <svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" strokeWidth="2.5" className="text-ember-400">
+                      <svg
+                        viewBox="0 0 24 24"
+                        width="12"
+                        height="12"
+                        fill="none"
+                        stroke="currentColor"
+                        strokeWidth="2.5"
+                        className="text-ember-400"
+                      >
                         <path d="M5 13l4 4L19 7" strokeLinecap="round" strokeLinejoin="round" />
                       </svg>
                     )}
                   </span>
                   <span className="min-w-0 flex-1">
-                    <span className={`block truncate font-mono text-[11px] ${isActive ? 'text-coal-100' : 'text-coal-200'}`}>
+                    <span
+                      className={`block truncate font-mono text-[11px] ${isActive ? 'text-coal-100' : 'text-coal-200'}`}
+                    >
                       {label}
                     </span>
-                    <span className="block text-[10px] text-coal-500">{ago(item.lastModified)}</span>
+                    <span className="block text-[10px] text-coal-500">
+                      {ago(item.lastModified)}
+                    </span>
                   </span>
                 </button>
               );
