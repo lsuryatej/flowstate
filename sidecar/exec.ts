@@ -73,7 +73,11 @@ export async function suggestNextTask(
   } else if (firstOpen) {
     emit({ t: 'next_task', task: firstOpen.text, reason: `next unchecked step of "${plan.goal}"` });
   } else {
-    emit({ t: 'error', message: 'next-task engine got no usable answer; try again' });
+    const isErrorText = out && out.length < 200 && !out.includes('{');
+    emit({
+      t: 'error',
+      message: isErrorText ? out : 'next-task engine got no usable answer; try again',
+    });
   }
 }
 
@@ -92,9 +96,12 @@ export async function decompose(
     (t): t is string => typeof t === 'string' && t.trim().length > 0,
   );
   if (texts.length === 0) {
+    const isErrorText = out && out.length < 200 && !out.includes('{');
     emit({
       t: 'error',
-      message: 'decomposer got no usable checklist; rephrase the goal and try again',
+      message: isErrorText
+        ? out
+        : 'decomposer got no usable checklist; rephrase the goal and try again',
     });
     return;
   }
