@@ -6,7 +6,7 @@
 import { query } from '@anthropic-ai/claude-agent-sdk';
 import { getSharedQueryOptions } from './queryOptions';
 
-const UTILITY_MODEL = 'claude-haiku-4-5-20251001'; // testing-phase pin, same as agentSession.ts
+const UTILITY_MODEL = 'haiku'; // testing-phase pin, same as agentSession.ts
 
 /** Run one prompt, no tools, one turn; return the result text ('' on failure).
  *
