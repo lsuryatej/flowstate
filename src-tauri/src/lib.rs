@@ -6,7 +6,8 @@
 
 use std::io::{BufRead, BufReader, Write};
 use std::process::{Child, ChildStdin, Command, Stdio};
-use std::sync::Mutex;
+use std::sync::atomic::{AtomicBool, Ordering};
+use std::sync::{Arc, Mutex};
 use tauri::{AppHandle, Emitter, Manager, RunEvent, State};
 use tauri_plugin_global_shortcut::{GlobalShortcutExt, ShortcutState};
 
@@ -17,6 +18,11 @@ const KEYCHAIN_USER: &str = "anthropic_api_key";
 struct Sidecar {
     child: Mutex<Option<Child>>,
     stdin: Mutex<Option<ChildStdin>>,
+    // Flag for the CURRENT child, shared with its ferry thread. respawn_sidecar
+    // and shutdown set it true before killing so the ferry thread can tell an
+    // intentional kill (session switch, key change, quit) from a real crash and
+    // stay quiet instead of firing a false "sidecar exited" banner.
+    expected_exit: Mutex<Option<Arc<AtomicBool>>>,
 }
 
 fn keychain_entry() -> Result<keyring::Entry, String> {
@@ -87,9 +93,17 @@ fn spawn_sidecar(app: &AppHandle) -> std::io::Result<Child> {
     let stdout = child.stdout.take().expect("piped stdout");
     let stderr = child.stderr.take().expect("piped stderr");
 
+    // Fresh exit flag for this child. Stored in state so respawn/shutdown can
+    // flip it before killing; a clone goes to the ferry thread below.
+    let expected_exit = Arc::new(AtomicBool::new(false));
+    if let Ok(mut g) = app.state::<Sidecar>().expected_exit.lock() {
+        *g = Some(expected_exit.clone());
+    }
+
     // Ferry thread: sidecar stdout -> Tauri events. Buffer by newline, guard
     // the parse, never crash the pipe on one bad frame (SPEC §9).
     let handle = app.clone();
+    let exit_flag = expected_exit.clone();
     std::thread::spawn(move || {
         for line in BufReader::new(stdout).lines() {
             let Ok(line) = line else { break };
@@ -107,10 +121,18 @@ fn spawn_sidecar(app: &AppHandle) -> std::io::Result<Child> {
             }
         }
         eprintln!("[pipe] sidecar stdout closed");
-        let _ = handle.emit(
-            UI_EVENT_CHANNEL,
-            serde_json::json!({ "t": "error", "message": "sidecar exited; restart the session to continue" }),
-        );
+        // Only a genuine, unexpected death is worth alarming the user. An
+        // intentional kill (respawn on session switch / key change, or quit)
+        // flips this flag first, and the new sidecar's own boot is the real
+        // signal — so stay quiet here.
+        if exit_flag.load(Ordering::SeqCst) {
+            eprintln!("[pipe] expected exit (intentional respawn); no error emitted");
+        } else {
+            let _ = handle.emit(
+                UI_EVENT_CHANNEL,
+                serde_json::json!({ "t": "error", "message": "sidecar exited; restart the session to continue" }),
+            );
+        }
     });
 
     // Sidecar logs (stderr) -> host log.
@@ -127,6 +149,14 @@ fn spawn_sidecar(app: &AppHandle) -> std::io::Result<Child> {
 /// Used at startup, after an API key is saved, and by restart_session.
 fn respawn_sidecar(app: &AppHandle) -> Result<(), String> {
     let state: State<Sidecar> = app.state();
+    // Mark the outgoing child's exit as expected BEFORE killing it, so its
+    // ferry thread stays quiet instead of firing a false "sidecar exited"
+    // banner. spawn_sidecar (below) then installs a fresh flag for the new child.
+    if let Ok(guard) = state.expected_exit.lock() {
+        if let Some(flag) = guard.as_ref() {
+            flag.store(true, Ordering::SeqCst);
+        }
+    }
     if let Ok(mut guard) = state.child.lock() {
         if let Some(mut old) = guard.take() {
             let _ = old.kill();
@@ -291,6 +321,7 @@ pub fn run() {
             app.manage(Sidecar {
                 child: Mutex::new(None),
                 stdin: Mutex::new(None),
+                expected_exit: Mutex::new(None),
             });
             respawn_sidecar(app.handle()).map_err(std::io::Error::other)?;
 
@@ -310,11 +341,14 @@ pub fn run() {
         .expect("error while building tauri application")
         .run(|app, event| {
             if let RunEvent::Exit = event {
-                let child = {
-                    let state: State<Sidecar> = app.state();
-                    let taken = state.child.lock().ok().and_then(|mut g| g.take());
-                    taken
-                };
+                let state: State<Sidecar> = app.state();
+                // Expected exit: quitting the app, not a crash.
+                if let Ok(guard) = state.expected_exit.lock() {
+                    if let Some(flag) = guard.as_ref() {
+                        flag.store(true, Ordering::SeqCst);
+                    }
+                }
+                let child = state.child.lock().ok().and_then(|mut g| g.take());
                 if let Some(mut child) = child {
                     let _ = child.kill();
                 }

@@ -137,7 +137,9 @@ function reduce(s: AppState, a: Action): AppState {
   const e = a.e;
   switch (e.t) {
     case 'session_started':
-      return { ...s, sessionId: e.sessionId };
+      // A fresh session booting is proof the sidecar is healthy — clear any
+      // stale error/needsInput banner (belt-and-suspenders for respawn paths).
+      return { ...s, sessionId: e.sessionId, error: null, needsInput: null };
     case 'agent_working':
       return {
         ...s,
@@ -263,13 +265,17 @@ function reduce(s: AppState, a: Action): AppState {
       return { ...s, cwdStatus: { valid: e.valid, resolved: e.resolved, message: e.message } };
     // ---- v3 ----
     case 'history':
+      // A session switch backfills history without a prompt (so no
+      // session_started fires) — clear the stale banner here too.
       return {
         ...s,
         chat: e.items.map((i) => ({ role: i.role, text: i.text })),
         resumed: e.items.length === 0 ? false : s.resumed,
+        error: null,
+        needsInput: null,
       };
     case 'resumed':
-      return { ...s, resumed: true };
+      return { ...s, resumed: true, error: null, needsInput: null };
     case 'auth_status':
       return { ...s, auth: { method: e.method, email: e.email, plan: e.plan } };
     case 'recent_projects':
