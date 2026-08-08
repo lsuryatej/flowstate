@@ -51,6 +51,48 @@ function human(bytes) {
   return `${(bytes / 1024 / 1024).toFixed(0)}MB`;
 }
 
+/**
+ * Re-sign a macOS binary ad-hoc, and prove it actually runs.
+ *
+ * `bun build --compile` appends the JS bundle to the END of the Bun runtime
+ * executable, which is already linker-signed. Appending invalidates the
+ * signature's page hashes, and on Apple Silicon the kernel kills the process
+ * on its first fault into the modified region:
+ *
+ *   SIGKILL (Code Signature Invalid) / termination namespace CODESIGNING
+ *
+ * The sidecar therefore died instantly in every packaged build, which the app
+ * only ever surfaced as silence (or a bare "sidecar exited" banner). Signing
+ * after the append fixes it. `-` is the ad-hoc identity; swap in a Developer
+ * ID here if/when this ships outside your own machine, since ad-hoc binaries
+ * still trip Gatekeeper on a machine that didn't build them.
+ */
+function signAndVerify(binPath) {
+  console.log(`[sign] ad-hoc signing ${binPath}`);
+  execFileSync('codesign', ['--force', '--sign', '-', binPath], { stdio: 'inherit' });
+  execFileSync('codesign', ['--verify', '--verbose=2', binPath], { stdio: 'inherit' });
+
+  // Signing succeeding is not the same as the binary running. Boot it with a
+  // control frame it can answer without touching the network, and require the
+  // matching UiEvent back. This is the check that would have caught the
+  // SIGKILL at build time instead of at first launch.
+  console.log('[sign] smoke-testing the signed binary');
+  const probe = JSON.stringify({ type: 'validate_cwd', cwd: root }) + '\n';
+  let stdout;
+  try {
+    stdout = execFileSync(binPath, { input: probe, encoding: 'utf8', timeout: 30_000 });
+  } catch (err) {
+    throw new Error(
+      `signed sidecar failed to run (${err.signal ?? err.status}). ` +
+        `If this is SIGKILL, the code signature is still invalid. Original: ${err}`,
+    );
+  }
+  if (!stdout.includes('"t":"cwd_status"')) {
+    throw new Error(`signed sidecar booted but did not answer validate_cwd. Got: ${stdout}`);
+  }
+  console.log('[sign] verified: binary boots and answers control frames');
+}
+
 const triple = targetTriple();
 mkdirSync(outDir, { recursive: true });
 
@@ -66,6 +108,7 @@ execFileSync(
 );
 chmodSync(sidecarOut, 0o755);
 console.log(`[sidecar] ${human(statSync(sidecarOut).size)}`);
+if (process.platform === 'darwin') signAndVerify(sidecarOut);
 
 // 2. Stage the native Claude binary next to it.
 const claudeSrc = nativeClaudeBinary();
@@ -78,5 +121,18 @@ if (!existsSync(claudeOut) || statSync(claudeSrc).size !== statSync(claudeOut).s
 }
 chmodSync(claudeOut, 0o755);
 console.log(`[claude] ${human(statSync(claudeOut).size)}`);
+
+// The native binary arrives already signed by Anthropic and copyFileSync keeps
+// the embedded signature intact, so this is a guard rail rather than a fix —
+// but a silently unrunnable `claude` fails exactly like the sidecar did, and
+// that class of bug is only cheap to find here.
+if (process.platform === 'darwin') {
+  try {
+    execFileSync('codesign', ['--verify', '--verbose=2', claudeOut], { stdio: 'inherit' });
+  } catch (err) {
+    console.warn(`[claude] signature check failed, re-signing ad-hoc: ${err}`);
+    execFileSync('codesign', ['--force', '--sign', '-', claudeOut], { stdio: 'inherit' });
+  }
+}
 
 console.log('\nDone. Both externalBins are staged in src-tauri/binaries/.');
