@@ -14,6 +14,8 @@ import {
   type ParkedItem,
   type PermissionMode,
   type PlanItem,
+  type SessionListItem,
+  type SessionScope,
   type TodoItem,
   type UiEvent,
 } from '../shared/uiEvents';
@@ -57,7 +59,11 @@ export interface AppState {
   resumed: boolean; // a prior session was resumed on boot (drives the chip)
   auth: { method: 'subscription' | 'api_key' | 'none'; email?: string; plan?: string } | null;
   recentProjects: { cwd: string; lastPrompt: string; lastSeen: number }[];
-  sessionList: { sessionId: string; summary: string; lastModified: number; firstPrompt?: string }[];
+  // v5: the browser can show this repo's sessions or every session Claude Code
+  // has. Both lists are kept so switching scope is instant and a slow answer
+  // for one scope can never overwrite the other.
+  sessionLists: Record<SessionScope, SessionListItem[]>;
+  authDetail: string | null; // raw accountInfo fields for the header tooltip
   // ---- v4 (terminal parity) ----
   commands: CommandInfo[]; // slash-command menu source
   fileList: { query: string; items: string[] } | null; // @-mention autocomplete answers
@@ -97,7 +103,8 @@ const initial: AppState = {
   resumed: false,
   auth: null,
   recentProjects: [],
-  sessionList: [],
+  sessionLists: { repo: [], all: [] },
+  authDetail: null,
   commands: [],
   fileList: null,
   todos: [],
@@ -220,6 +227,18 @@ function reduce(s: AppState, a: Action): AppState {
     }
     case 'error':
       return { ...s, error: e.message };
+    case 'prompt_echo':
+      // Sent from another window (the capture pill). Same shape as a locally
+      // dispatched user_prompt so the transcript reads identically either way.
+      return {
+        ...s,
+        chat: [...s.chat, { role: 'user', text: e.text }],
+        lastResult: null,
+        error: null,
+        needsInput: null,
+        nextTask: null,
+        resumed: false,
+      };
     // ---- v1 ----
     case 'next_task':
       return { ...s, nextTask: { task: e.task, reason: e.reason } };
@@ -277,11 +296,15 @@ function reduce(s: AppState, a: Action): AppState {
     case 'resumed':
       return { ...s, resumed: true, error: null, needsInput: null };
     case 'auth_status':
-      return { ...s, auth: { method: e.method, email: e.email, plan: e.plan } };
+      return {
+        ...s,
+        auth: { method: e.method, email: e.email, plan: e.plan },
+        authDetail: e.detail ?? null,
+      };
     case 'recent_projects':
       return { ...s, recentProjects: e.items };
     case 'session_list':
-      return { ...s, sessionList: e.items };
+      return { ...s, sessionLists: { ...s.sessionLists, [e.scope]: e.items } };
     // ---- v4 ----
     case 'commands':
       return { ...s, commands: e.items };
@@ -336,7 +359,7 @@ export function useAppState() {
   const deadZone = state.mode === 'working' && debounced;
 
   const onEvent = useCallback((e: UiEvent) => dispatch({ kind: 'ui', e }), []);
-  const { send: rawSend, interrupt, sendControl } = useAgent(onEvent);
+  const { send: rawSend, interrupt, sendControl, restartSidecar } = useAgent(onEvent);
 
   const cwdRef = useRef<string | undefined>(undefined);
   const send = useCallback(
@@ -352,5 +375,14 @@ export function useAppState() {
   const dismissNext = useCallback(() => dispatch({ kind: 'dismiss_next' }), []);
   const dismissRecovery = useCallback(() => dispatch({ kind: 'dismiss_recovery' }), []);
 
-  return { state, deadZone, send, interrupt, sendControl, dismissNext, dismissRecovery };
+  return {
+    state,
+    deadZone,
+    send,
+    interrupt,
+    sendControl,
+    restartSidecar,
+    dismissNext,
+    dismissRecovery,
+  };
 }

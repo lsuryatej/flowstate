@@ -1,23 +1,22 @@
 // SessionBrowser — a compact popover (RecentProjects pattern): the trigger is
-// a small stacked-layers icon; the menu lists this repo's past agent sessions
-// newest-first (clui-cc-style conversation-history browsing). Picking one
-// resumes THAT session, not just the most recent — the parent handles the
-// restart-sidecar + resume_specific round-trip.
+// a small stacked-layers icon; the menu lists past agent sessions newest-first.
+// Picking one resumes THAT session, not just the most recent — the parent
+// handles the restart-sidecar + resume_specific round-trip.
+//
+// v5: two scopes. "this repo" is the old behaviour. "everywhere" lists every
+// session Claude Code has ever written — CLI and desktop app included — because
+// the point of flowstate is to be a front-end for Claude Code, not a separate
+// silo with its own private history. Each row in the "everywhere" list carries
+// the repo it belongs to, and picking it switches flowstate into that repo.
 
 import { useEffect, useRef, useState } from 'react';
-
-interface SessionListItem {
-  sessionId: string;
-  summary: string;
-  lastModified: number;
-  firstPrompt?: string;
-}
+import type { SessionListItem, SessionScope } from '../../shared/uiEvents';
 
 interface Props {
-  items: SessionListItem[];
+  lists: Record<SessionScope, SessionListItem[]>;
   activeSessionId: string | null;
-  onOpen: () => void; // parent refreshes the list when the popover opens
-  onPick: (sessionId: string) => void;
+  onOpen: (scope: SessionScope) => void; // parent (re)fetches the list for a scope
+  onPick: (item: SessionListItem) => void;
 }
 
 function ago(ts: number): string {
@@ -32,9 +31,26 @@ function ago(ts: number): string {
   return `${d}d ago`;
 }
 
-function SessionBrowser({ items, activeSessionId, onOpen, onPick }: Props) {
+/** Last path segment, e.g. /Users/me/adhd-killer -> adhd-killer. */
+function repoName(cwd: string | undefined): string {
+  if (!cwd) return '';
+  return cwd.split('/').filter(Boolean).pop() ?? cwd;
+}
+
+const SCOPES: { id: SessionScope; label: string; hint: string }[] = [
+  { id: 'repo', label: 'this repo', hint: 'Sessions started in the current repo path' },
+  {
+    id: 'all',
+    label: 'everywhere',
+    hint: 'Every Claude Code session on this machine — terminal and desktop app included',
+  },
+];
+
+function SessionBrowser({ lists, activeSessionId, onOpen, onPick }: Props) {
   const [open, setOpen] = useState(false);
+  const [scope, setScope] = useState<SessionScope>('repo');
   const ref = useRef<HTMLDivElement>(null);
+  const items = lists[scope];
 
   // Close on outside click or Escape.
   useEffect(() => {
@@ -51,6 +67,12 @@ function SessionBrowser({ items, activeSessionId, onOpen, onPick }: Props) {
     };
   }, [open]);
 
+  // Refetch whenever the popover opens or the user flips scope, so the list is
+  // never a stale snapshot from the last time it was looked at.
+  useEffect(() => {
+    if (open) onOpen(scope);
+  }, [open, scope, onOpen]);
+
   return (
     <div ref={ref} className="relative inline-flex">
       <button
@@ -58,12 +80,8 @@ function SessionBrowser({ items, activeSessionId, onOpen, onPick }: Props) {
         aria-haspopup="listbox"
         aria-expanded={open}
         aria-label="past sessions"
-        title="Past sessions for this repo"
-        onClick={() => {
-          const next = !open;
-          setOpen(next);
-          if (next) onOpen();
-        }}
+        title="Past Claude Code sessions"
+        onClick={() => setOpen((v) => !v)}
         className="p-1 text-coal-600 transition-colors duration-200 hover:text-coal-300 active:scale-[0.98]"
       >
         <svg
@@ -81,57 +99,95 @@ function SessionBrowser({ items, activeSessionId, onOpen, onPick }: Props) {
       </button>
 
       {open && (
-        <div
-          role="listbox"
-          className="fs-raised fs-settle-in absolute right-0 top-full z-50 mt-1.5 w-72 rounded-lg border border-coal-800 bg-coal-900 py-1"
-        >
-          {items.length === 0 ? (
-            <p className="px-3 py-1.5 font-mono text-[10px] text-coal-600">no past sessions here</p>
-          ) : (
-            items.map((item) => {
-              const isActive = item.sessionId === activeSessionId;
-              const label = item.summary.trim() || item.firstPrompt?.trim() || item.sessionId;
-              return (
-                <button
-                  key={item.sessionId}
-                  type="button"
-                  role="option"
-                  aria-selected={isActive}
-                  onClick={() => {
-                    onPick(item.sessionId);
-                    setOpen(false);
-                  }}
-                  className="flex w-full items-start gap-2 px-3 py-1.5 text-left transition-colors duration-150 hover:bg-coal-850"
-                >
-                  <span className="mt-0.5 w-3 shrink-0">
-                    {isActive && (
-                      <svg
-                        viewBox="0 0 24 24"
-                        width="12"
-                        height="12"
-                        fill="none"
-                        stroke="currentColor"
-                        strokeWidth="2.5"
-                        className="text-ember-400"
+        <div className="fs-raised fs-settle-in absolute right-0 top-full z-50 mt-1.5 w-96 rounded-lg border border-coal-800 bg-coal-900 py-1">
+          {/* scope switch: this repo vs every Claude Code session on the machine */}
+          <div className="mb-1 flex items-center gap-1 border-b border-coal-800/70 px-2 pb-1.5 pt-0.5">
+            {SCOPES.map((s) => (
+              <button
+                key={s.id}
+                type="button"
+                title={s.hint}
+                onClick={() => setScope(s.id)}
+                className={`rounded px-2 py-0.5 font-mono text-[10px] uppercase tracking-[0.12em] transition-colors duration-150 ${
+                  scope === s.id
+                    ? 'bg-ember-500/15 text-ember-300'
+                    : 'text-coal-600 hover:text-coal-300'
+                }`}
+              >
+                {s.label}
+              </button>
+            ))}
+            <span className="flex-1" />
+            <span className="font-mono text-[10px] text-coal-700">{items.length}</span>
+          </div>
+
+          <div role="listbox" className="max-h-80 overflow-y-auto">
+            {items.length === 0 ? (
+              <p className="px-3 py-1.5 font-mono text-[10px] text-coal-600">
+                {scope === 'repo'
+                  ? 'no sessions for this repo path yet — try "everywhere"'
+                  : 'no Claude Code sessions found on this machine'}
+              </p>
+            ) : (
+              items.map((item) => {
+                const isActive = item.sessionId === activeSessionId;
+                const label = item.summary?.trim() || item.firstPrompt?.trim() || item.sessionId;
+                const repo = repoName(item.cwd);
+                return (
+                  <button
+                    key={item.sessionId}
+                    type="button"
+                    role="option"
+                    aria-selected={isActive}
+                    title={item.cwd ?? undefined}
+                    onClick={() => {
+                      onPick(item);
+                      setOpen(false);
+                    }}
+                    className="flex w-full items-start gap-2 px-3 py-1.5 text-left transition-colors duration-150 hover:bg-coal-850"
+                  >
+                    <span className="mt-0.5 w-3 shrink-0">
+                      {isActive && (
+                        <svg
+                          viewBox="0 0 24 24"
+                          width="12"
+                          height="12"
+                          fill="none"
+                          stroke="currentColor"
+                          strokeWidth="2.5"
+                          className="text-ember-400"
+                        >
+                          <path d="M5 13l4 4L19 7" strokeLinecap="round" strokeLinejoin="round" />
+                        </svg>
+                      )}
+                    </span>
+                    <span className="min-w-0 flex-1">
+                      <span
+                        className={`block truncate font-mono text-[11px] ${isActive ? 'text-coal-100' : 'text-coal-200'}`}
                       >
-                        <path d="M5 13l4 4L19 7" strokeLinecap="round" strokeLinejoin="round" />
-                      </svg>
-                    )}
-                  </span>
-                  <span className="min-w-0 flex-1">
-                    <span
-                      className={`block truncate font-mono text-[11px] ${isActive ? 'text-coal-100' : 'text-coal-200'}`}
-                    >
-                      {label}
+                        {label}
+                      </span>
+                      <span className="flex items-center gap-1.5 text-[10px] text-coal-500">
+                        <span>{ago(item.lastModified)}</span>
+                        {scope === 'all' && repo && (
+                          <>
+                            <span className="text-coal-700">·</span>
+                            <span className="truncate text-coal-500">{repo}</span>
+                          </>
+                        )}
+                        {item.gitBranch && (
+                          <>
+                            <span className="text-coal-700">·</span>
+                            <span className="truncate text-coal-600">{item.gitBranch}</span>
+                          </>
+                        )}
+                      </span>
                     </span>
-                    <span className="block text-[10px] text-coal-500">
-                      {ago(item.lastModified)}
-                    </span>
-                  </span>
-                </button>
-              );
-            })
-          )}
+                  </button>
+                );
+              })
+            )}
+          </div>
         </div>
       )}
     </div>

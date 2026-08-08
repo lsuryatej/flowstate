@@ -101,6 +101,21 @@ export const EFFORT_LABELS: Record<EffortLevel, string> = {
 };
 export const DEFAULT_EFFORT: EffortLevel = 'high'; // SDK default
 
+// v5: the session browser can list this repo's sessions or every session the
+// Claude Code CLI / desktop app has ever written (listSessions with no `dir`
+// walks all of ~/.claude/projects). "all" is what makes flowstate a real
+// front-end for Claude Code rather than a separate silo.
+export type SessionScope = 'repo' | 'all';
+
+export interface SessionListItem {
+  sessionId: string;
+  summary: string;
+  lastModified: number;
+  firstPrompt?: string;
+  cwd?: string; // the repo the session belongs to — required to switch into it
+  gitBranch?: string;
+}
+
 export type UiEvent =
   | { t: 'session_started'; sessionId: string }
   | { t: 'assistant_text'; delta: string } // streamed text chunk
@@ -111,6 +126,7 @@ export type UiEvent =
   | { t: 'agent_needs_input'; reason: string } // permission prompt / waiting on user (v0.2b notification)
   | { t: 'result'; ok: boolean; summary: string; xpTotal: number } // xpTotal: running XP after this turn (sidecar owns xp.json)
   | { t: 'error'; message: string }
+  | { t: 'prompt_echo'; text: string } // a prompt sent from another window (capture pill), so the main chat can show it
   // ---- v1 (all list-bearing events are FULL snapshots, never deltas) ----
   | { t: 'next_task'; task: string; reason: string } // v1.1: the ONE suggested task + one-line why
   | { t: 'plan'; goal: string; items: PlanItem[] } // v1.2: current checklist (emitted on decompose, check, boot)
@@ -126,12 +142,19 @@ export type UiEvent =
   // ---- v3 (session continuity) ----
   | { t: 'history'; items: { role: 'user' | 'assistant'; text: string }[] } // full transcript replace on resume
   | { t: 'resumed'; sessionId: string } // a prior session was resumed
-  | { t: 'auth_status'; method: 'subscription' | 'api_key' | 'none'; email?: string; plan?: string } // surfaced after the session initializes
+  | {
+      t: 'auth_status';
+      method: 'subscription' | 'api_key' | 'none';
+      email?: string;
+      plan?: string;
+      detail?: string; // raw accountInfo fields, for the tooltip — auth confusion must be diagnosable without stderr
+    } // surfaced after the session initializes
   | { t: 'recent_projects'; items: { cwd: string; lastPrompt: string; lastSeen: number }[] } // the "where was I" list
   | {
       t: 'session_list';
-      items: { sessionId: string; summary: string; lastModified: number; firstPrompt?: string }[];
-    } // past sessions for the active repo
+      scope: SessionScope; // which list this is, so a late answer can't overwrite the other view
+      items: SessionListItem[];
+    } // past sessions, this repo or every repo
   // ---- v4 (terminal parity: commands, thinking, todos, context, rewind, memory) ----
   | { t: 'commands'; items: CommandInfo[] } // full snapshot of available slash commands (session init + commands_changed)
   | { t: 'command_output'; text: string } // a local slash command (e.g. /compact, /cost) printed output
@@ -149,7 +172,18 @@ export type UiEvent =
 // Control messages the webview sends toward the sidecar
 // (webview -> Tauri command -> Rust -> sidecar stdin, one JSON per line).
 export type ControlMsg =
-  | { type: 'prompt'; text: string; cwd?: string; attachments?: string[] } // attachments = absolute file paths; sidecar reads + builds content blocks
+  | {
+      type: 'prompt';
+      text: string;
+      cwd?: string;
+      attachments?: string[]; // absolute file paths; sidecar reads + builds content blocks
+      /** Which window sent it. The main window renders the prompt locally the
+       * instant you hit enter, so it must NOT also render the echo. Anything
+       * else (the capture pill) has no chat of its own, so the sidecar echoes
+       * the prompt back and the main window appends it. Without this, a thought
+       * fired from the pill vanished — its reply appeared with nothing above it. */
+      origin?: 'main' | 'capture';
+    }
   | { type: 'interrupt' }
   // ---- v1 ----
   | { type: 'suggest_next_task'; cwd?: string } // v1.1: reads cwd's STATE.md + plan -> one Haiku call -> next_task
@@ -168,7 +202,7 @@ export type ControlMsg =
   | { type: 'resume_session'; cwd?: string } // boot: backfill history + arm resume of this repo's last session
   | { type: 'new_session' } // discard armed resume + clear chat; next prompt starts fresh
   | { type: 'get_recent_projects' } // request the recent-repos list
-  | { type: 'list_sessions'; cwd?: string } // request past sessions for this repo
+  | { type: 'list_sessions'; cwd?: string; scope?: SessionScope } // past sessions: this repo (default) or every repo Claude Code knows
   | { type: 'resume_specific'; sessionId: string; cwd?: string } // arm resume of a chosen session + backfill its transcript
   // ---- v4 ----
   | { type: 'list_files'; cwd?: string; query: string } // @-mention autocomplete: fuzzy file lookup in the repo

@@ -49,13 +49,25 @@ function CapturePill() {
   }, []);
 
   const parkAndHide = useCallback((value: string) => {
-    void invoke('send_control', { msg: { type: 'park', text: value } });
+    void invoke('send_control', { msg: { type: 'park', text: value } }).catch((err) =>
+      console.error('[flowstate] capture park failed', err),
+    );
     setText('');
     void getCurrentWindow().hide();
   }, []);
 
+  // Goes through send_control (the same ControlMsg pipe the main window uses)
+  // rather than the narrower send_prompt command, and tags itself so the
+  // sidecar echoes the prompt back for the main window's transcript.
   const promptAndHide = useCallback((value: string) => {
-    void invoke('send_prompt', { text: value, cwd: localStorage.getItem('fs.cwd') ?? undefined });
+    void invoke('send_control', {
+      msg: {
+        type: 'prompt',
+        text: value,
+        cwd: localStorage.getItem('fs.cwd') ?? undefined,
+        origin: 'capture',
+      },
+    }).catch((err) => console.error('[flowstate] capture prompt failed', err));
     setText('');
     void getCurrentWindow().hide();
   }, []);

@@ -25,6 +25,8 @@ import {
   DEFAULT_PERMISSION_MODE,
   type EffortLevel,
   type PermissionMode,
+  type SessionListItem,
+  type SessionScope,
 } from '../shared/uiEvents';
 import type { FillerMode, ScratchpadEntry } from './types';
 import TinySelect from './components/TinySelect';
@@ -156,12 +158,40 @@ function useElapsedLabel(turnStartedAt: number | null): string {
 }
 
 function App() {
-  const { state, deadZone, send, interrupt, sendControl, dismissNext, dismissRecovery } =
-    useAppState();
+  const {
+    state,
+    deadZone,
+    send,
+    interrupt,
+    sendControl,
+    restartSidecar,
+    dismissNext,
+    dismissRecovery,
+  } = useAppState();
   const [fillerMode, setFillerMode] = usePersisted<FillerMode>('fs.fillerMode', 'scratchpad');
   const [mutedStr, setMutedStr] = usePersisted<'yes' | 'no'>('fs.muted', 'no');
   const muted = mutedStr === 'yes';
-  const [cwd, setCwd] = useState(() => localStorage.getItem('fs.cwd') ?? '');
+  // The repo path has ONE source of truth. It used to live in React state while
+  // several call sites re-read localStorage directly, so a path typed into the
+  // header (which only called setCwd) was invisible to the session browser, the
+  // boot resume and the session picker — they all quietly used the previous
+  // value. setRepo writes both together; nothing else touches 'fs.cwd'.
+  const [cwd, setCwdState] = useState(() => localStorage.getItem('fs.cwd') ?? '');
+  // Mirrored into a ref so callbacks can read the CURRENT path without taking
+  // `cwd` as a dependency (which would re-create every handler on each keystroke).
+  const cwdRef = useRef(cwd);
+  useEffect(() => {
+    cwdRef.current = cwd;
+  }, [cwd]);
+  const setRepo = useCallback((dir: string) => {
+    cwdRef.current = dir; // callers may read it back in the same tick
+    setCwdState(dir);
+    const trimmed = dir.trim();
+    if (trimmed) localStorage.setItem('fs.cwd', trimmed);
+    else localStorage.removeItem('fs.cwd');
+  }, []);
+  /** The repo path to send with a control message, or undefined when blank. */
+  const repoArg = useCallback(() => cwdRef.current.trim() || undefined, []);
   const [keyOpen, setKeyOpen] = useState(false);
   const [keyDraft, setKeyDraft] = useState('');
   const [hasKey, setHasKey] = useState(false);
@@ -240,19 +270,10 @@ function App() {
   useEffect(() => {
     const lastActive = Number(localStorage.getItem('fs.lastActive') ?? 0);
     const id = window.setTimeout(() => {
-      // v3: resume this repo's last session (backfills history) before
-      // anything else so the transcript is in place before the first prompt.
-      void sendControl({
-        type: 'resume_session',
-        cwd: localStorage.getItem('fs.cwd') ?? undefined,
-      });
-      void sendControl({ type: 'get_recovery' });
-      void sendControl({
-        type: 'suggest_next_task',
-        cwd: localStorage.getItem('fs.cwd') ?? undefined,
-      });
-      // v2: sync the persisted model + permission mode into the fresh sidecar
-      // before the first turn can start.
+      const dir = repoArg();
+      // v2: sync the persisted config into the fresh sidecar BEFORE anything
+      // that can start a turn, so the first prompt runs with the user's model
+      // and permission mode rather than the defaults.
       void sendControl({
         type: 'set_model',
         model: localStorage.getItem('fs.model') ?? DEFAULT_MODEL,
@@ -265,8 +286,13 @@ function App() {
         type: 'set_effort',
         level: (localStorage.getItem('fs.effort') as EffortLevel) ?? DEFAULT_EFFORT,
       });
-      const savedCwd = localStorage.getItem('fs.cwd');
-      if (savedCwd) void sendControl({ type: 'validate_cwd', cwd: savedCwd });
+      // v3: resume this repo's last session (backfills history + rewind
+      // checkpoints + CLAUDE.md) so the transcript is in place before the
+      // first prompt.
+      void sendControl({ type: 'resume_session', cwd: dir });
+      void sendControl({ type: 'get_recovery' });
+      void sendControl({ type: 'suggest_next_task', cwd: dir });
+      if (dir) void sendControl({ type: 'validate_cwd', cwd: dir });
       void sendControl({ type: 'get_recent_projects' });
       if (lastActive && Date.now() - lastActive > RECOVERY_GAP_MS) setShowRecovery(true);
     }, 400); // let the sidecar finish booting
@@ -288,7 +314,7 @@ function App() {
       window.removeEventListener('beforeunload', markActive);
       window.removeEventListener('focus', onFocus);
     };
-  }, [sendControl]);
+  }, [sendControl, repoArg]);
 
   // v1.3: one keypress to park a thought (Cmd+J), Esc handled by the panel.
   useEffect(() => {
@@ -314,7 +340,6 @@ function App() {
   const onSend = useCallback(
     (text: string, attachments: string[] = []) => {
       const dir = cwd.trim() || undefined;
-      if (dir) localStorage.setItem('fs.cwd', dir);
       // v1.2: "/plan <goal>" routes to the decomposer instead of the agent.
       const plan = /^\/plan\s+(.+)/s.exec(text);
       if (plan) {
@@ -390,6 +415,22 @@ function App() {
   // v3: user chose a clean slate over the resumed session.
   const onNewSession = useCallback(() => void sendControl({ type: 'new_session' }), [sendControl]);
 
+  // v5: the agent process died (or was never able to start). Respawn it and
+  // replay the boot handshake so the app comes back rather than sitting silent.
+  const onRestartSidecar = useCallback(() => {
+    void (async () => {
+      await restartSidecar();
+      await new Promise((r) => setTimeout(r, 500)); // let the fresh sidecar boot
+      const dir = repoArg();
+      void sendControl({ type: 'set_model', model });
+      void sendControl({ type: 'set_permission_mode', mode: permMode });
+      void sendControl({ type: 'set_effort', level: effort });
+      void sendControl({ type: 'resume_session', cwd: dir });
+      void sendControl({ type: 'get_recovery' });
+      void sendControl({ type: 'get_recent_projects' });
+    })();
+  }, [restartSidecar, sendControl, repoArg, model, permMode, effort]);
+
   // v4: @-mention lookups from the prompt bar (debounced bar-side).
   const onQueryFiles = useCallback(
     (query: string) =>
@@ -430,63 +471,60 @@ function App() {
     [cwd, sendControl],
   );
 
-  // v3: switch to a recently-used project — mirrors what happens when the
-  // user sets a repo path and reboots the per-repo context.
+  // v3: switch to a recently-used project. resume_session now also tears down a
+  // live query pointed at the previous repo (AgentSession.switchProject), so the
+  // agent actually follows the UI instead of quietly staying in the old repo.
   const onPickProject = useCallback(
     (dir: string) => {
-      setCwd(dir);
-      localStorage.setItem('fs.cwd', dir);
+      setRepo(dir);
       void sendControl({ type: 'validate_cwd', cwd: dir });
-      void sendControl({ type: 'resume_session', cwd: dir });
+      void sendControl({ type: 'resume_session', cwd: dir }); // also re-emits memory
       void sendControl({ type: 'get_recovery' });
       void sendControl({ type: 'suggest_next_task', cwd: dir });
-      void sendControl({ type: 'get_memory', cwd: dir }); // v4: refresh CLAUDE.md for the new repo
     },
-    [sendControl],
+    [sendControl, setRepo],
   );
 
-  // v3: session browser — parent refreshes the list on open, then picking a
-  // session restarts the sidecar (one sidecar = one session, cannot switch
-  // in-process) before re-syncing config and arming the specific resume.
-  const onOpenSessions = useCallback(() => {
-    void sendControl({ type: 'list_sessions', cwd: localStorage.getItem('fs.cwd') ?? undefined });
-  }, [sendControl]);
-
-  const onPickSession = useCallback(
-    (sessionId: string) => {
-      const dir = localStorage.getItem('fs.cwd') ?? undefined;
-      void (async () => {
-        await invoke('restart_session'); // fresh sidecar: one sidecar = one session
-        // give the fresh sidecar a beat to boot before control messages
-        await new Promise((r) => setTimeout(r, 500));
-        // re-sync config the boot effect normally sends
-        void sendControl({
-          type: 'set_model',
-          model: localStorage.getItem('fs.model') ?? DEFAULT_MODEL,
-        });
-        void sendControl({
-          type: 'set_permission_mode',
-          mode: (localStorage.getItem('fs.permMode') as PermissionMode) ?? DEFAULT_PERMISSION_MODE,
-        });
-        void sendControl({
-          type: 'set_effort',
-          level: (localStorage.getItem('fs.effort') as EffortLevel) ?? DEFAULT_EFFORT,
-        });
-        void sendControl({ type: 'resume_specific', sessionId, cwd: dir });
-      })();
+  // v3/v5: session browser. The list is fetched per scope — 'repo' for the
+  // current path, 'all' for every session Claude Code has on this machine.
+  const onOpenSessions = useCallback(
+    (scope: SessionScope) => {
+      void sendControl({ type: 'list_sessions', cwd: repoArg(), scope });
     },
-    [sendControl],
+    [sendControl, repoArg],
+  );
+
+  // Picking a session no longer restarts the whole sidecar: resume_specific
+  // tears the live query down itself. A session from another repo also brings
+  // its cwd along, so choosing a conversation from the terminal or the desktop
+  // app switches flowstate into that repo rather than resuming it against the
+  // wrong directory.
+  const onPickSession = useCallback(
+    (item: SessionListItem) => {
+      const dir = item.cwd?.trim() || repoArg();
+      if (item.cwd?.trim() && item.cwd.trim() !== cwdRef.current.trim()) {
+        setRepo(item.cwd.trim());
+        void sendControl({ type: 'validate_cwd', cwd: item.cwd.trim() });
+      }
+      void sendControl({ type: 'resume_specific', sessionId: item.sessionId, cwd: dir });
+      void sendControl({ type: 'get_memory', cwd: dir });
+      void sendControl({ type: 'get_recovery' });
+    },
+    [sendControl, repoArg, setRepo],
   );
 
   // v2: native folder picker -> set + validate the repo path.
   const pickFolder = useCallback(async () => {
     const picked = await open({ directory: true, multiple: false, title: 'Choose repo folder' });
     if (typeof picked === 'string') {
-      setCwd(picked);
-      localStorage.setItem('fs.cwd', picked);
+      setRepo(picked);
       void sendControl({ type: 'validate_cwd', cwd: picked });
+      // Follow the pick through: load that repo's session, memory and recovery
+      // rather than leaving the UI on the previous repo's context.
+      void sendControl({ type: 'resume_session', cwd: picked });
+      void sendControl({ type: 'get_recovery' });
     }
-  }, [sendControl]);
+  }, [sendControl, setRepo]);
 
   // v2: debounce path validation as the user types (blank clears the status).
   useEffect(() => {
@@ -555,7 +593,7 @@ function App() {
           <input
             className="w-60 border-b border-transparent bg-transparent px-0 py-0.5 font-mono text-[11px] text-coal-400 outline-none transition-colors duration-200 placeholder:text-coal-600 hover:border-coal-800 focus:border-coal-700"
             value={cwd}
-            onChange={(e) => setCwd(e.currentTarget.value)}
+            onChange={(e) => setRepo(e.currentTarget.value)}
             placeholder="repo path (blank = this repo)"
             spellCheck={false}
           />
@@ -594,7 +632,7 @@ function App() {
           </button>
           <RecentProjects items={state.recentProjects} onPick={onPickProject} />
           <SessionBrowser
-            items={state.sessionList}
+            lists={state.sessionLists}
             activeSessionId={state.sessionId}
             onOpen={onOpenSessions}
             onPick={onPickSession}
@@ -621,11 +659,14 @@ function App() {
           <span
             className="flex items-center gap-1 font-mono text-[11px] text-coal-500"
             title={
-              state.auth.method === 'subscription'
+              (state.auth.method === 'subscription'
                 ? `Signed in with your Claude subscription${state.auth.email ? ` (${state.auth.email})` : ''}${state.auth.plan ? ` · ${state.auth.plan}` : ''}`
                 : state.auth.method === 'api_key'
                   ? 'Authenticated with an API key (usage-billed). Remove the key to fall back to a Claude subscription login, if you have one.'
-                  : 'Not signed in. Run `claude` then /login in a terminal, or paste an API key.'
+                  : 'Not signed in. Run `claude` then /login in a terminal, or paste an API key.') +
+              // The raw fields, so a wrong-looking badge is diagnosable in place
+              // instead of requiring a stderr dig.
+              (state.authDetail ? `\n\n${state.authDetail}` : '')
             }
           >
             <span
@@ -798,6 +839,7 @@ function App() {
             arriving={arriving}
             lastResult={state.lastResult}
             error={state.error}
+            onRestartSidecar={onRestartSidecar}
           />
 
           {/* statusline + prompt share the reading measure so the column reads

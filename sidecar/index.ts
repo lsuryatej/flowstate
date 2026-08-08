@@ -59,6 +59,10 @@ rl.on('line', (line) => {
       `prompt received (${msg.text.length} chars)${msg.cwd ? ` cwd=${msg.cwd}` : ''}${msg.attachments?.length ? ` +${msg.attachments.length} attachments` : ''}`,
     );
     trackPrompt(msg.text);
+    // Prompts from the capture pill have no chat of their own to render into,
+    // so echo them for the main window. The main window already rendered its
+    // own, and echoing those too would double every message.
+    if (msg.origin && msg.origin !== 'main') emit({ t: 'prompt_echo', text: msg.text });
     session.sendPrompt(msg.text, msg.cwd, msg.attachments);
   } else if (msg.type === 'interrupt') {
     log('interrupt received');
@@ -97,26 +101,43 @@ rl.on('line', (line) => {
     emit({ t: 'cwd_status', valid, resolved, message: valid ? undefined : 'path not found' });
   } else if (msg.type === 'resume_session') {
     setActiveProject(msg.cwd);
-    void session.resume(msg.cwd);
+    // switchProject() is resume() plus "drop a live query pointed at another
+    // repo first". On boot nothing is live so it degrades to a plain resume.
+    void session.switchProject(msg.cwd);
+    // The memory panel reads CLAUDE.md from disk, so it can be filled in
+    // immediately on boot rather than waiting for the user to expand it.
+    readMemory(msg.cwd, emit);
   } else if (msg.type === 'new_session') {
     session.newSession();
   } else if (msg.type === 'get_recent_projects') {
     emit({ t: 'recent_projects', items: readRecentProjects() });
   } else if (msg.type === 'list_sessions') {
-    const dir = resolveCwd(msg.cwd);
-    void listSessions({ dir: dir || undefined, limit: 20 })
-      .then((infos) =>
+    // scope 'all' omits `dir`, which makes listSessions walk every project under
+    // ~/.claude/projects — i.e. every conversation the Claude Code CLI and
+    // desktop app have ever written, not just this repo's. That is what lets
+    // flowstate act as a front-end for Claude Code instead of a separate silo.
+    const scope = msg.scope ?? 'repo';
+    const dir = scope === 'all' ? undefined : resolveCwd(msg.cwd) || undefined;
+    void listSessions({ dir, limit: scope === 'all' ? 100 : 30 })
+      .then((infos) => {
+        log(`list_sessions scope=${scope} dir=${dir ?? '(all)'} -> ${infos.length}`);
         emit({
           t: 'session_list',
+          scope,
           items: infos.map((i) => ({
             sessionId: i.sessionId,
             summary: i.summary,
             lastModified: i.lastModified,
             firstPrompt: i.firstPrompt,
+            cwd: i.cwd,
+            gitBranch: i.gitBranch,
           })),
-        }),
-      )
-      .catch((err) => log(`list_sessions failed: ${err}`));
+        });
+      })
+      .catch((err) => {
+        log(`list_sessions failed: ${err}`);
+        emit({ t: 'error', message: `could not list sessions: ${err}` });
+      });
   } else if (msg.type === 'resume_specific') {
     setActiveProject(msg.cwd);
     void session.resumeSpecific(msg.sessionId, msg.cwd);
@@ -134,6 +155,12 @@ rl.on('line', (line) => {
 });
 
 rl.on('close', () => {
-  log('stdin closed, exiting');
-  process.exit(0);
+  // Exiting synchronously here kills any in-flight async work (a resume
+  // backfill, a session listing) before it can write its answer to stdout.
+  // Give the event loop a beat to drain, then leave; if nothing else is
+  // pending the process would exit on its own anyway and the timer is unref'd
+  // so it cannot hold us open.
+  log('stdin closed, draining before exit');
+  const bail = setTimeout(() => process.exit(0), 2000);
+  bail.unref();
 });
