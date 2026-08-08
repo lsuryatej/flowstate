@@ -4,10 +4,18 @@
 // readable) + parking-lot.json (structured mirror the UI reads), and
 // position.json (last prompt/result — feeds the recovery card).
 
-import { appendFileSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
+import {
+  appendFileSync,
+  mkdirSync,
+  readFileSync,
+  renameSync,
+  unlinkSync,
+  writeFileSync,
+} from 'node:fs';
 import { homedir } from 'node:os';
 import { dirname, join } from 'node:path';
 import type { ParkedItem, PlanItem } from '../shared/uiEvents.js';
+import { resolveCwd, slugFor } from './paths.js';
 
 // Matches the Tauri app identifier so Rust and the sidecar agree on the dir.
 const dataDir = join(homedir(), 'Library', 'Application Support', 'com.suryatejlalam.flowstate');
@@ -21,18 +29,6 @@ const projectsPath = join(dataDir, 'projects.json');
 // setActiveProject() is called from index.ts whenever a cwd-bearing control
 // message arrives; all pPath() reads/writes resolve against the active slug. ----
 let activeSlug = '_default';
-
-/** Sanitize a repo path into a filesystem-safe, readable slug. Blank -> _default. */
-function slugFor(cwd: string | undefined): string {
-  const s = (cwd ?? '').trim();
-  if (!s) return '_default';
-  const slug = s
-    .replace(/[^a-zA-Z0-9]+/g, '-')
-    .replace(/^-+|-+$/g, '')
-    .toLowerCase()
-    .slice(0, 120);
-  return slug || '_default';
-}
 
 /** Absolute path to a file in the ACTIVE project's dir. */
 function pPath(file: string): string {
@@ -51,12 +47,7 @@ export function readXp(): number {
 /** Increment XP and return the new total. Never throws (reward layer must not crash the spine). */
 export function addXp(n: number): number {
   const total = readXp() + n;
-  try {
-    mkdirSync(dataDir, { recursive: true });
-    writeFileSync(xpPath, JSON.stringify({ total }) + '\n');
-  } catch {
-    // best-effort; losing an XP tick is not worth an error event
-  }
+  writeJson(xpPath, { total }); // atomic; losing an XP tick is not worth an error event
   return total;
 }
 
@@ -71,12 +62,26 @@ function readJson<T>(path: string, fallback: T): T {
   }
 }
 
+/**
+ * Write JSON atomically: full content to a sibling temp file, then rename over
+ * the target. rename(2) is atomic within a filesystem, so a crash or a kill
+ * mid-write leaves the previous file intact instead of a truncated one that
+ * readJson() would silently swallow and replace with defaults — which for
+ * session-pointer.json means quietly losing the conversation.
+ */
 function writeJson(path: string, value: unknown): void {
+  const tmp = `${path}.${process.pid}.tmp`;
   try {
     mkdirSync(dirname(path), { recursive: true }); // per-project dirs may be nested
-    writeFileSync(path, JSON.stringify(value, null, 2) + '\n');
+    writeFileSync(tmp, JSON.stringify(value, null, 2) + '\n');
+    renameSync(tmp, path);
   } catch {
-    // best-effort
+    // best-effort; clear the temp file so failures don't accumulate
+    try {
+      unlinkSync(tmp);
+    } catch {
+      /* nothing to clean up */
+    }
   }
 }
 
@@ -91,11 +96,14 @@ export interface ProjectEntry {
 /** Point all per-project reads/writes at this repo, and record it in the registry. */
 export function setActiveProject(cwd: string | undefined): void {
   activeSlug = slugFor(cwd);
-  const trimmed = (cwd ?? '').trim();
-  if (!trimmed) return; // the blank/_default repo isn't a listed "project"
+  // Record the RESOLVED path, not what the user typed. The registry feeds the
+  // recent-projects menu, and picking an entry has to hand back a path that
+  // matches the one stored in this repo's session pointer.
+  const resolved = resolveCwd(cwd);
+  if (!resolved) return; // the blank/_default repo isn't a listed "project"
   const existing = readJson<ProjectEntry[]>(projectsPath, []);
   const list = Array.isArray(existing) ? existing.filter((p) => p.slug !== activeSlug) : [];
-  list.unshift({ cwd: trimmed, slug: activeSlug, lastSeen: Date.now() });
+  list.unshift({ cwd: resolved, slug: activeSlug, lastSeen: Date.now() });
   writeJson(projectsPath, list.slice(0, 20));
 }
 
