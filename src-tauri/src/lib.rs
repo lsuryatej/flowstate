@@ -172,16 +172,20 @@ fn respawn_sidecar(app: &AppHandle) -> Result<(), String> {
 fn write_to_sidecar(state: &State<Sidecar>, msg: serde_json::Value) -> Result<(), String> {
     let mut guard = state.stdin.lock().map_err(|e| e.to_string())?;
     let stdin = guard.as_mut().ok_or("sidecar stdin not available")?;
-    writeln!(stdin, "{msg}").map_err(|e| format!("write to sidecar failed: {e}"))
+    // A dead sidecar shows up here as EPIPE. The error propagates to the
+    // webview, which now renders it with a "restart agent" action instead of
+    // dropping it into an unhandled promise.
+    writeln!(stdin, "{msg}").map_err(|e| {
+        eprintln!("[pipe] write to sidecar failed: {e}");
+        format!("write to sidecar failed: {e}")
+    })
 }
 
-#[tauri::command]
-fn send_prompt(state: State<Sidecar>, text: String, cwd: Option<String>) -> Result<(), String> {
-    write_to_sidecar(
-        &state,
-        serde_json::json!({ "type": "prompt", "text": text, "cwd": cwd }),
-    )
-}
+// `send_prompt` used to exist as a narrower alternative to send_control. It
+// could not carry attachments or the origin tag, and the capture pill using it
+// was why prompts fired from the pill never appeared in the main transcript.
+// Both windows now go through send_control, which keeps the ControlMsg contract
+// in exactly one place (shared/uiEvents.ts).
 
 #[tauri::command]
 fn interrupt(state: State<Sidecar>) -> Result<(), String> {
@@ -307,7 +311,6 @@ pub fn run() {
                 .build(),
         )
         .invoke_handler(tauri::generate_handler![
-            send_prompt,
             interrupt,
             send_control,
             set_api_key,

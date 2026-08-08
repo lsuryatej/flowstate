@@ -82,6 +82,9 @@ export interface ResponsePaneProps {
   arriving: boolean;
   lastResult: { ok: boolean; summary: string } | null;
   error: string | null;
+  /** v5: respawn the sidecar. An error banner with no way out is a dead end —
+   *  the most common failure (agent process gone) is one click to recover. */
+  onRestartSidecar: () => void;
 }
 
 export interface ToolHUDProps {

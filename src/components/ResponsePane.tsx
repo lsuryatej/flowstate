@@ -68,7 +68,7 @@ function FirstRun() {
   );
 }
 
-function ResponsePane({ chat, arriving, lastResult, error }: ResponsePaneProps) {
+function ResponsePane({ chat, arriving, lastResult, error, onRestartSidecar }: ResponsePaneProps) {
   const scrollRef = useRef<HTMLDivElement>(null);
   // The result summary is a recap, not the answer — the user often wants it
   // out of the way. Collapse is a preference: once folded it stays folded
@@ -133,7 +133,19 @@ function ResponsePane({ chat, arriving, lastResult, error }: ResponsePaneProps) 
         </div>
       </div>
 
-      {error && <div className="fs-hairline-t px-4 py-2 text-xs text-ember-400/80">{error}</div>}
+      {error && (
+        <div className="fs-hairline-t flex items-start justify-between gap-3 px-4 py-2">
+          <span className="text-xs text-ember-400/80">{error}</span>
+          <button
+            type="button"
+            onClick={onRestartSidecar}
+            title="Kill and respawn the agent process, then reload this repo's session"
+            className="shrink-0 rounded-md px-2 py-0.5 font-mono text-[10px] uppercase tracking-[0.12em] text-coal-500 transition-colors duration-200 hover:bg-ember-500/10 hover:text-ember-300"
+          >
+            restart agent
+          </button>
+        </div>
+      )}
 
       {lastResult && (
         <div className="fs-hairline-t px-4 py-2">
