@@ -9,10 +9,10 @@
 // permission_response). See shared/uiEvents.ts for the contract.
 
 import { existsSync, readFileSync, statSync } from 'node:fs';
-import { homedir } from 'node:os';
-import { basename, extname, resolve } from 'node:path';
+import { basename, extname } from 'node:path';
 import { query, getSessionMessages } from '@anthropic-ai/claude-agent-sdk';
 import { getSharedQueryOptions } from './queryOptions';
+import { resolveCwd } from './paths.js';
 import type {
   PermissionUpdate,
   Query,
@@ -28,18 +28,15 @@ import {
   DEFAULT_EFFORT,
   DEFAULT_MODEL,
   DEFAULT_PERMISSION_MODE,
+  type Checkpoint,
   type EffortLevel,
   type PermissionMode,
   type UiEvent,
 } from '../shared/uiEvents.js';
 
-/** Expand a leading `~` and resolve to an absolute path. Empty -> undefined. */
-export function resolveCwd(cwd?: string): string | undefined {
-  const raw = cwd?.trim();
-  if (!raw) return undefined;
-  const expanded = raw === '~' || raw.startsWith('~/') ? homedir() + raw.slice(1) : raw;
-  return resolve(expanded);
-}
+// Re-exported so existing importers keep working; the implementation lives in
+// paths.ts because store.ts needs the same normalization to pick its dirs.
+export { resolveCwd };
 
 /** Our four-mode UI vocabulary -> the SDK's permission-mode strings. */
 function toSdkMode(mode: PermissionMode): SdkPermissionMode {
@@ -64,6 +61,8 @@ const IMAGE_TYPES: Record<string, 'image/png' | 'image/jpeg' | 'image/gif' | 'im
 const MAX_IMAGE_BYTES = 5 * 1024 * 1024;
 const MAX_TEXT_BYTES = 100 * 1024;
 const MAX_ATTACHMENTS = 4;
+/** How many RENDERABLE (non-empty text) messages a resume replays, newest last. */
+const HISTORY_MESSAGES = 60;
 
 /** File path -> content block. Images become base64 blocks; everything else is inlined as text (best-effort). */
 function attachmentBlock(path: string, log: (s: string) => void): ContentBlockParam | null {
@@ -154,6 +153,16 @@ export class AgentSession {
   ) {}
 
   sendPrompt(text: string, cwd?: string, attachments?: string[]): void {
+    // Guard against a prompt landing in the wrong repo. cwd is fixed when
+    // query() is constructed, so if the user retargeted the repo field mid-
+    // session the live query is still pointed at the old directory — drop it
+    // and let start() below build a new one for the directory actually asked for.
+    const wanted = resolveCwd(cwd) ?? '';
+    if (this.q && wanted !== this.resolvedCwd) {
+      this.log(`cwd changed ("${this.resolvedCwd}" -> "${wanted}"), restarting session`);
+      this.teardown('repo path changed');
+      this.resolvedCwd = wanted;
+    }
     const blocks = (attachments ?? [])
       .slice(0, MAX_ATTACHMENTS)
       .map((p) => attachmentBlock(p, this.log))
@@ -494,10 +503,17 @@ export class AgentSession {
       this.log(
         `accountInfo: apiKeySource=${a.apiKeySource} tokenSource=${a.tokenSource} subscriptionType=${a.subscriptionType} apiProvider=${a.apiProvider} email=${a.email}`,
       );
-      // A subscription can report through any of these, depending on the login
-      // flow — checking only apiKeySource==='oauth' mislabels it as an API key.
+      // A subscription reports through several different fields depending on the
+      // login flow and the SDK version. Current builds return
+      //   { tokenSource: 'claude.ai', apiKeySource: …, apiProvider: 'firstParty' }
+      // for a Pro/Max login — note NO 'oauth' anywhere and no subscriptionType.
+      // The previous check only looked for 'oauth'/subscriptionType, so a real
+      // Claude subscription was reported as "api key" in the header.
       const sub =
-        a.apiKeySource === 'oauth' || a.tokenSource === 'oauth' || Boolean(a.subscriptionType);
+        a.tokenSource === 'claude.ai' ||
+        a.apiKeySource === 'oauth' ||
+        a.tokenSource === 'oauth' ||
+        Boolean(a.subscriptionType);
       // A real pasted/env key surfaces as a concrete apiKeySource.
       const key = Boolean(a.apiKeySource) && a.apiKeySource !== 'oauth';
       const method: 'subscription' | 'api_key' | 'none' = sub
@@ -505,7 +521,11 @@ export class AgentSession {
         : key
           ? 'api_key'
           : 'none';
-      this.emit({ t: 'auth_status', method, email: a.email, plan: a.subscriptionType });
+      // Both signals can be present at once (a subscription login AND an
+      // ANTHROPIC_API_KEY in the environment). Ship the raw fields so the header
+      // tooltip can tell the truth instead of the user having to read stderr.
+      const detail = `tokenSource=${a.tokenSource ?? '-'} apiKeySource=${a.apiKeySource ?? '-'} apiProvider=${a.apiProvider ?? '-'}`;
+      this.emit({ t: 'auth_status', method, email: a.email, plan: a.subscriptionType, detail });
     } catch (err) {
       this.log(`accountInfo failed: ${err}`);
       this.emit({ t: 'auth_status', method: 'none' });
@@ -516,33 +536,98 @@ export class AgentSession {
   async resume(cwd?: string): Promise<void> {
     const dir = resolveCwd(cwd) ?? '';
     const pointer = readSessionPointer();
-    if (!pointer || pointer.cwd !== dir) return; // nothing to resume for this repo
+    if (!pointer || pointer.cwd !== dir) {
+      // Nothing to resume for this repo. Say so explicitly: this used to return
+      // in silence, which the webview could not tell apart from "the sidecar
+      // never answered" — an empty pane with no explanation either way.
+      this.log(
+        pointer
+          ? `no resume: pointer belongs to "${pointer.cwd}", asked for "${dir}"`
+          : `no resume: no session pointer stored for "${dir}"`,
+      );
+      this.emit({ t: 'history', items: [] });
+      return;
+    }
     this.pendingResumeId = pointer.sessionId;
     this.resolvedCwd = dir;
     await this.backfillAndArm(pointer.sessionId, dir);
   }
 
-  /** Arm resume of a SPECIFIC chosen session + backfill its transcript. */
+  /** Arm resume of a SPECIFIC chosen session + backfill its transcript.
+   * The session may belong to a DIFFERENT repo than the one currently live
+   * (the browser can list every session Claude Code knows about), so this tears
+   * the current query down rather than assuming the caller restarts us. */
   async resumeSpecific(sessionId: string, cwd?: string): Promise<void> {
     const dir = resolveCwd(cwd) ?? '';
+    if (this.q) this.teardown(`switching to session ${sessionId}`);
     this.pendingResumeId = sessionId;
     this.resolvedCwd = dir;
-    if (this.q) this.log('resumeSpecific while a session is live — arm will apply after restart');
     await this.backfillAndArm(sessionId, dir);
+  }
+
+  /** Point the sidecar at a different repo: drop the live query so the next
+   * prompt opens a session with the NEW cwd, then arm that repo's own session.
+   *
+   * Without this, `start()` — which is only reachable when `this.q` is null —
+   * left cwd frozen at whatever the first prompt used. Picking another project
+   * swapped the whole UI over while the agent kept reading and writing files in
+   * the previous repo, silently. */
+  async switchProject(cwd?: string): Promise<void> {
+    const dir = resolveCwd(cwd) ?? '';
+    if (dir === this.resolvedCwd && this.q) {
+      this.log(`switchProject: already on "${dir}", nothing to do`);
+      return;
+    }
+    if (this.q) this.teardown(`switching project to "${dir}"`);
+    this.pendingResumeId = null;
+    this.resolvedCwd = dir;
+    await this.resume(cwd);
+  }
+
+  /** Close the live query without letting its pump report the close as a crash. */
+  private teardown(reason: string): void {
+    this.log(`tearing down session: ${reason}`);
+    this.denyAllPending(reason);
+    this.generation++; // silence the old pump before close() unwinds it
+    try {
+      this.q?.close();
+    } catch (err) {
+      this.log(`close during teardown failed (continuing): ${err}`);
+    }
+    this.q = null;
+    this.currentSessionId = null;
+    // Checkpoints and in-flight tool ids belong to the session we just dropped.
+    this.normalizer = new Normalizer();
+    this.emit({ t: 'checkpoint', items: [] });
+    this.emit({ t: 'todos', items: [] });
   }
 
   /** Shared backfill body for resume()/resumeSpecific(): read the transcript,
    * emit it as history, then emit resumed regardless of read success (the
-   * pendingResumeId is armed either way). */
+   * pendingResumeId is armed either way).
+   *
+   * The transcript is read WHOLE and sliced from the end. GetSessionMessagesOptions
+   * `limit` is head-based ("maximum number of messages to return", paired with an
+   * `offset` that skips "from the start"), so the old `limit: 40` returned the
+   * OLDEST 40 frames — and because most of those frames are tool_use/tool_result
+   * blocks that flatten to '', only a handful survived the text filter. A long
+   * session reliably came back showing five lines from the day it started, which
+   * is what made the app look like it had no memory. Filter first, THEN take the
+   * tail, so the budget is spent entirely on messages that actually render. */
   private async backfillAndArm(sessionId: string, dir: string): Promise<void> {
     try {
-      const msgs = await getSessionMessages(sessionId, { dir: dir || undefined, limit: 40 });
-      const items = msgs
+      const msgs = await getSessionMessages(sessionId, { dir: dir || undefined });
+      const all = msgs
         .filter((m) => m.type === 'user' || m.type === 'assistant')
         .map((m) => ({ role: m.type as 'user' | 'assistant', text: extractText(m) }))
         .filter((i) => i.text.trim().length > 0);
+      const items = all.slice(-HISTORY_MESSAGES);
+      this.log(
+        `backfilled ${items.length} of ${all.length} renderable messages (${msgs.length} raw) for ${sessionId}`,
+      );
       this.emit({ t: 'history', items });
       this.emit({ t: 'resumed', sessionId });
+      this.seedCheckpointsFrom(msgs);
     } catch (err) {
       this.log(`resume backfill failed: ${err}`);
       // still armed to resume even if backfill read failed
@@ -550,9 +635,37 @@ export class AgentSession {
     }
   }
 
+  /** Rebuild rewind anchors from a resumed transcript, mirroring what the
+   * Normalizer derives live: one checkpoint per real user prompt, anchored to
+   * the uuid of the last assistant message seen before it. */
+  private seedCheckpointsFrom(msgs: SessionMessage[]): void {
+    const rebuilt: Checkpoint[] = [];
+    let lastAssistantUuid: string | null = null;
+    for (const m of msgs) {
+      if (m.type === 'assistant') {
+        if (m.uuid) lastAssistantUuid = m.uuid;
+        continue;
+      }
+      if (m.type !== 'user' || !m.uuid) continue;
+      const text = extractText(m);
+      if (!text.trim()) continue; // tool-result frame, not a prompt
+      rebuilt.push({
+        id: m.uuid,
+        convAnchor: lastAssistantUuid,
+        label: text.trim().replace(/\s+/g, ' ').slice(0, 80),
+        ts: Date.parse(String((m as { timestamp?: unknown }).timestamp ?? '')) || Date.now(),
+      });
+    }
+    const items = rebuilt.slice(-HISTORY_MESSAGES);
+    this.normalizer.seedCheckpoints(items);
+    this.emit({ t: 'checkpoint', items });
+    this.log(`rebuilt ${items.length} rewind checkpoints from the resumed transcript`);
+  }
+
   /** User chose a clean slate: drop the armed resume and clear the pane. */
   newSession(): void {
     this.pendingResumeId = null;
     this.emit({ t: 'history', items: [] });
+    this.emit({ t: 'checkpoint', items: [] });
   }
 }

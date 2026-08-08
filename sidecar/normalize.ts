@@ -84,6 +84,15 @@ export class Normalizer {
     return this.checkpoints;
   }
 
+  /** Adopt anchors rebuilt from a resumed transcript. Checkpoints used to live
+   * only in this object's lifetime, so every reload emptied the rewind menu
+   * until the user sent a fresh prompt — the resumed conversation was there on
+   * screen but none of it could be rewound to. */
+  seedCheckpoints(items: Checkpoint[]): void {
+    this.checkpoints = [...items];
+    this.lastAssistantUuid = items.length ? (items[items.length - 1].convAnchor ?? null) : null;
+  }
+
   /** After a rewind to checkpoint `id`, drop it and everything after it. */
   truncateCheckpoints(id: string): void {
     const idx = this.checkpoints.findIndex((c) => c.id === id);
